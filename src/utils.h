@@ -120,15 +120,51 @@ vector < MyTree *>  readTrees(const string & path) throw (Exception) {
      * @return A vector which is the ordered union of all ordered vectors given in input.
      */
      
+    /* remove, because the version below is more efficient
     template<class T>
-    vector < T> allLeaves(vector < T> a[], int size){
-        if(size==1) return a[0];
-        vector < T> all =  unionVector( a[0],a[1]);
-        for (int i=2; i< size; i++){
-            all =  unionVector(all,a[i]);
-        }
-        return all;
+    vector<T> allLeaves(const vector<T> a[], unsigned size){
+      if(size == 1) return a[0];
+      vector<T> all = a[0];
+      for(int i=1; i< size; ++i){
+        const unsigned all_size = all.size();
+        copy(a[i].begin(), a[i].end(), back_inserter(all));
+        inplace_merge(all.begin(), all.begin() + all_size, all.end());
+      }
+      return all;
+    }
+    */
+#include <queue>
+    template<class Container>
+    struct iter_cmp{
+      typedef typename Container::const_iterator it;
+      bool operator()(const pair<it,it>& x, const pair<it,it>& y) const { return *x.first > *y.first; }
     };
+    template<class T>
+    vector<T> allLeaves(const vector<T> a[], unsigned size){
+      // in the queue, we map the smallest element of each vector to its vector
+      typedef typename vector<T>::const_iterator T_iter;
+      typedef pair<T_iter, T_iter> T_iterpair;
+      priority_queue<T_iterpair, vector<T_iterpair>, iter_cmp<vector<T> > > smallest_items;
+
+      unsigned total_size = 0;
+      for(unsigned i = 0; i < size; ++i){
+        total_size += a[i].size();
+        smallest_items.emplace(a[i].begin(), a[i].end());
+      }
+
+      vector<T> result;
+      result.reserve(total_size);
+      while(!smallest_items.empty()){
+        T_iterpair smallest = smallest_items.top();
+        smallest_items.pop();
+        // add the item to the result
+        result.push_back(*smallest.first);
+        // see if we're at the end of the corresponding vector
+        if(++smallest.first != smallest.second)
+          smallest_items.emplace(smallest);
+      }
+    }
+
 
         /**
      * @brief This function returns the intersection of two ordered vectors.
