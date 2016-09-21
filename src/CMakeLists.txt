@@ -10,21 +10,22 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
 # --- the IMPROVED_FIND_LIBRARY macro (taken from the Bio++ CMakeLists.txt) ---
 macro(IMPROVED_FIND_LIBRARY OUTPUT_LIBS lib_name include_to_find)
-    FIND_PATH(${lib_name}_INCLUDE_DIR ${include_to_find} PATH_SUFFIXES bpp-phyl-2.2.0/src bpp-seq-2.2.0/src bpp-core-2.2.0/src )
-    SET(${lib_name}_NAMES ${lib_name} ${lib_name}lib ${lib_name}dll)
-    FIND_LIBRARY(${lib_name}_LIBRARY NAMES ${${lib_name}_NAMES} PATH_SUFFIXES bpp-phyl-2.2.0/src bpp-seq-2.2.0/src bpp-core-2.2.0/src )
+  FIND_PATH(${lib_name}_INCLUDE_DIR ${include_to_find} PATHS ENV HOME PATH_SUFFIXES bpp-phyl-2.2.0/src bpp-seq-2.2.0/src bpp-core-2.2.0/src )
+  message ( "${lib_name} found at ${${lib_name}_INCLUDE_DIR}" )
+  SET(${lib_name}_NAMES ${lib_name} ${lib_name}lib ${lib_name}dll)
+  FIND_LIBRARY(${lib_name}_LIBRARY NAMES ${${lib_name}_NAMES} PATHS ENV HOME PATH_SUFFIXES bpp-phyl-2.2.0/src bpp-seq-2.2.0/src bpp-core-2.2.0/src )
 
-    IF(${lib_name}_LIBRARY)
-        MESSAGE("-- Library ${lib_name} found here:")
-        MESSAGE("    ${${lib_name}_INCLUDE_DIR}/")
-        MESSAGE("    ${${lib_name}_LIBRARY}")
-    ELSE(${lib_name}_LIBRARY)
-        MESSAGE(FATAL_ERROR "${lib_name} required but not found.")
-    ENDIF(${lib_name}_LIBRARY)
+  IF(${lib_name}_LIBRARY)
+      MESSAGE("-- Library ${lib_name} found here:")
+      MESSAGE("    ${${lib_name}_INCLUDE_DIR}/")
+      MESSAGE("    ${${lib_name}_LIBRARY}")
+  ELSE(${lib_name}_LIBRARY)
+      MESSAGE(FATAL_ERROR "${lib_name} required but not found.")
+  ENDIF(${lib_name}_LIBRARY)
 
-    #add the dependency:
-    INCLUDE_DIRECTORIES(${${lib_name}_INCLUDE_DIR})
-    SET(${OUTPUT_LIBS} ${${OUTPUT_LIBS}} ${${lib_name}_LIBRARY})
+  #add the dependency:
+  INCLUDE_DIRECTORIES(${${lib_name}_INCLUDE_DIR})
+  SET(${OUTPUT_LIBS} ${${OUTPUT_LIBS}} ${${lib_name}_LIBRARY})
 ENDMACRO(IMPROVED_FIND_LIBRARY)
 
 #--- Libraries & includes ---
