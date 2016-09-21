@@ -34,6 +34,7 @@ using namespace bpp;
 
 #include "NodeInfos.h"
 #include "MyTree.h"
+#include "agreement_kernel.h"
 
 //typedef NodeTemplate<NodeInfos> MyNode;
 //typedef TreeTemplate<MyNode> MyTree;
@@ -41,127 +42,106 @@ using namespace bpp;
 #include "utils.h"
 
 
+const string help_text = (string)"" +
+                         "____________________________________________________________________________\n" +
+                         "This program takes as input a path to a list of phylogenetic trees in newick\n" +
+                         "format and an integer d and outputs a MAST-RL for the input, if any exists. \n" +
+                         "input.list.file            | [path] toward multi-trees file (newick)        \n" +
+                         "max.distance               | [integer] toward multi-trees file (newick)     \n" +
+                         "output.tree.file           | file where to write the MAST-RL tree           \n" +
+                         "___________________________|________________________________________________\n";
 
-void help()
+void quit(const string& message, const int return_code)
 {
-  ApplicationTools::displayMessage("__________________________________________________________________________" );
-  ApplicationTools::displayMessage("This program takes as input a path to a list of phylogenetic trees in ");
-  ApplicationTools::displayMessage("newick format and an integer d and outputs a MAST-RL for the input, if any exists.");
-  ApplicationTools::displayMessage("input.list.file            | [path] toward multi-trees file (newick)      " );
-  ApplicationTools::displayMessage("max.distance               | [integer] toward multi-trees file (newick)      " );
-  ApplicationTools::displayMessage("output.tree.file           | file where to write the MAST-RL tree" );
-  ApplicationTools::displayMessage("___________________________|___________________________________________" );
+  if(return_code != 0)
+    cerr << message << endl;
+  else
+    cout << message << endl;
+  exit(return_code);
 }
 
+void parse_params(const int args, char** const argv, map<string, string>& params)
+{
+  // Get the parameters from command line:
+  params = AttributesTools::getAttributesMap(AttributesTools::getVector(args, argv), "=");
+  
+  // Look for a specified file with parameters:
+  if(params.find("param") != params.end()) {
+    const string filename = params.at("param");
+    if(FileTools::fileExists(filename)) {
+      const map<string, string> file_params = AttributesTools::getAttributesMapFromFile(filename, "=");
+      // Update attributes with ones passed to command line:
+      AttributesTools::actualizeAttributesMap(params, file_params);
+    } else quit("Parameter file not found.", -1);
+  }
+}
 
 int main(int args, char ** argv){
 	  
-	cout << "******************************************************************" << endl;
-  	cout << "*               MAST-RL, version 0.1.0 *" << endl;
-  	cout << "* Authors: C. Scornavacca, Mathias Weller   Created     21/09/16 *" << endl;
-  	cout << "*                                           Last Modif. 21/09/16 *" << endl;
-  	cout << "******************************************************************" << endl;
-  	cout << endl;
+  cout << "******************************************************************" << endl;
+  cout << "*               MAST-RL, version 0.1.0 *" << endl;
+  cout << "* Authors: C. Scornavacca, Mathias Weller   Created     21/09/16 *" << endl;
+  cout << "*                                           Last Modif. 21/09/16 *" << endl;
+  cout << "******************************************************************" << endl << endl;
 
-	if(args == 1)
-  	{
-    	help();
-    	exit(0);
-  	}
+	if(args == 1) quit(help_text, 0);
   
-	try {
-	  
+	try {	  
 		ApplicationTools::startTimer();
 		
 		cout << "Parsing options:" << endl;
+    map<string, string> params;
+    parse_params(args, argv, params);
 		  
-		// Get the parameters from command line:
-		map<string, string> cmdParams = AttributesTools::getAttributesMap(AttributesTools::getVector(args, argv), "=");
-		
-		// Look for a specified file with parameters:
-		map<string, string> params;
-		if(cmdParams.find("param") != cmdParams.end())
-		{
-			string file = cmdParams["param"];
-			if(!FileTools::fileExists(file))
-			{
-				cerr << "Parameter file not found." << endl;
-			    exit(-1);
-			}
-			else
-			{
-				params = AttributesTools::getAttributesMapFromFile(file, "=");
-		  	    // Actualize attributes with ones passed to command line:
-		  	  AttributesTools::actualizeAttributesMap(params, cmdParams);
-			}
-		}
-		else
-		{
-			params = cmdParams;
-		}
-		
-		Newick newick;
-		string listPath = ApplicationTools::getAFilePath("input.list.file", params);
+		const string listPath = ApplicationTools::getAFilePath("input.list.file", params);
 		ApplicationTools::displayResult("Input list file", listPath);
 		if(listPath == "none") throw Exception("You must provide an input tree list file.");
-	    int d =  ApplicationTools::getDoubleParameter("bootstrap.treshold", params, 0);
+    const int d =  ApplicationTools::getDoubleParameter("bootstrap.treshold", params, 0);
+    const string outputPath = ApplicationTools::getAFilePath("output.tree.file", params, true, false);
+    ApplicationTools::displayResult("Output file", outputPath);
+  
+    if(outputPath == "none") throw Exception("You must provide an output file.");
 
-		       
-		string outputPath = ApplicationTools::getAFilePath("output.tree.file", params, true, false);
-		ApplicationTools::displayResult("Output file", outputPath);
-		if(outputPath == "none") throw Exception("You must provide an output file.");
-		      
+    //Reading trees to root
+    vector<MyTree*> trees;
+    trees = readTrees(listPath);
+    vector<string> leaves[trees.size() +1];
+          
+    for(unsigned y = 0; y < trees.size(); ++y) {
+      leaves[y] = trees[y]->getLeavesNames();  
+      sort(leaves[y].begin(), leaves[y].end());
+    }
+  
+    const vector<string> AllLeaves = allLeaves(leaves, trees.size());
+    
+    map<string,int> association;
+    map<string,int>::iterator iter;
+    
+    for (unsigned i = 0; i < AllLeaves.size(); ++i)
+      association.emplace(AllLeaves[i], i);
+    
+    vector<int> idLeaves[trees.size() +1];
+        
+    for(unsigned int y=0;y< trees.size();y++){
+      vector<MyNode*> leavesForId = trees[y]->getLeaves();  
+      for(unsigned l = 0; l < leavesForId.size(); ++l) {
+        iter= association.find((* leavesForId[l]).getName());	
+        leavesForId[l]->getInfos().setStid(iter->second);
+        idLeaves[y].push_back(iter->second);
+      }	
+      sort(idLeaves[y].begin(),idLeaves[y].end());
+    }
+    
+    if(trees.size()>1){
+      //newick.write(* trees[t], outputPath, false);	
+      for(unsigned int i = 0; i < trees.size(); i++) delete trees[i];				
+    } else cout << "In file " << listPath << " there is only a tree...\n";
 
-	  	vector<MyTree *> trees;
-	      
-	  	//Reading trees to root
-		trees = readTrees(listPath);
-		
-	  	vector < string> leaves[trees.size() +1];
-	  		  	
-	  	for(unsigned int y=0;y< trees.size();y++){
-			leaves[y]= (* trees[y]).getLeavesNames();  
-			sort(leaves[y].begin(), leaves[y].end());
-		}
-		
-	  	vector <string> AllLeaves = allLeaves(leaves, trees.size());
-	  	
-	  	map<string,int> association;
-	  	map<string,int>::iterator iter;
-	  	
-	  	for (unsigned int i =0;i<  AllLeaves.size(); i++){
-	  		association.insert( make_pair(  AllLeaves[i], i));
-		}  	
-	  	vector < int> idLeaves[trees.size() +1];
-	  			
-	  	for(unsigned int y=0;y< trees.size();y++){
-	  		vector <MyNode * >  leavesForId= (* trees[y]).getLeaves();  
-			for(unsigned int l=0;l< leavesForId.size();l++){		  
-				iter= association.find((* leavesForId[l]).getName());	
-				((* leavesForId[l]).getInfos()).setStid(iter->second);
-				(idLeaves[y]).push_back(iter->second);
-			}	
-			sort(idLeaves[y].begin(),idLeaves[y].end());
-	  	}
-	  	
-		
-		if(trees.size()>1){
-		    //newick.write(* trees[t], outputPath, false);	
-			for(unsigned int i = 0; i < trees.size(); i++) delete trees[i];
-					
-		}
-		else{
-			cout << "In file " << listPath << " there is only a tree...\n";
-		}	
-	
-	
-	}
-catch (std::exception&  e){
-    	cout << e.what() << endl;
-    	exit(-1);
-	}
-	return (0);
-};	
+  } catch (std::exception&  e) {
+    quit(e.what(), -1);
+  }
+	return 0;
+}
 	
 		
 		

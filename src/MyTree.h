@@ -13,28 +13,29 @@ typedef NodeTemplate<NodeInfos> MyNode;
 
 class MyTree: public TreeTemplate<MyNode> {
 public:
-	MyNode ** correspondance ;
-	MyNode ** correspondanceId ;
+	MyNode** correspondance;
+	MyNode** correspondanceId;
 
 	int dimCorr;
 	int dimCorrId;
 	int dimTS;
  	MyTree(int dim): TreeTemplate<MyNode>(){}
 
- 	MyTree(MyNode & root): TreeTemplate<MyNode>(& root), correspondance(NULL), correspondanceId(NULL){}
- 	MyTree(MyNode & root,int dim): TreeTemplate<MyNode>(& root), correspondance(new MyNode*[dim]), correspondanceId(new MyNode*[dim]){} 
+ 	MyTree(MyNode& root): TreeTemplate<MyNode>(& root), correspondance(NULL), correspondanceId(NULL){}
+ 	MyTree(MyNode& root, int dim): TreeTemplate<MyNode>(& root), correspondance(new MyNode*[dim]), correspondanceId(new MyNode*[dim]){} 
  	
- 	virtual ~MyTree(){
+ 	virtual ~MyTree()
+  {
  		if(correspondance)
  			delete [] (correspondance);
  		if(correspondanceId)
  			delete [] (correspondanceId);
  	} 
  	
-
- 	 void setCorrispondanceNull(){
-        for(int i = 0; i < dimCorr; i++)
- 			correspondance[i]= NULL; 	
+  void setCorrispondanceNull()
+  {
+    for(int i = 0; i < dimCorr; ++i)
+ 		  correspondance[i]= NULL; 	
  	}
  	
  	void setCorrispondanceLenght(int dim){
