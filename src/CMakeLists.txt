@@ -46,5 +46,9 @@ include_directories(${Boost_INCLUDE_DIRS})
 include_directories("include")
 
 # Source Directory
-add_subdirectory(hslinkern)
+add_subdirectory ( "hslinkern" )
+add_executable( "${PROJECT_NAME}" "${PROJECT_NAME}.cpp" )
+target_link_libraries ( "${PROJECT_NAME}" $ )
+
+
 
