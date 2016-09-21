@@ -86,7 +86,6 @@ int main(int args, char ** argv){
 
 	if(args == 1) quit(help_text, 0);
   
-	try {	  
 		ApplicationTools::startTimer();
 		
 		cout << "Parsing options:" << endl;
@@ -96,52 +95,56 @@ int main(int args, char ** argv){
 		const string listPath = ApplicationTools::getAFilePath("input.list.file", params);
 		ApplicationTools::displayResult("Input list file", listPath);
 		if(listPath == "none") throw Exception("You must provide an input tree list file.");
-    const int d =  ApplicationTools::getDoubleParameter("bootstrap.treshold", params, 0);
-    const string outputPath = ApplicationTools::getAFilePath("output.tree.file", params, true, false);
-    ApplicationTools::displayResult("Output file", outputPath);
-  
-    if(outputPath == "none") throw Exception("You must provide an output file.");
+	    int d =  ApplicationTools::getDoubleParameter("max.distance", params, 1);
 
-    //Reading trees to root
-    vector<MyTree*> trees;
-    trees = readTrees(listPath);
-    vector<string> leaves[trees.size() +1];
-          
-    for(unsigned y = 0; y < trees.size(); ++y) {
-      leaves[y] = trees[y]->getLeavesNames();  
-      sort(leaves[y].begin(), leaves[y].end());
-    }
-  
-    const vector<string> AllLeaves = allLeaves(leaves, trees.size());
-    
-    map<string,int> association;
-    map<string,int>::iterator iter;
-    
-    for (unsigned i = 0; i < AllLeaves.size(); ++i)
-      association.emplace(AllLeaves[i], i);
-    
-    vector<int> idLeaves[trees.size() +1];
-        
-    for(unsigned int y=0;y< trees.size();y++){
-      vector<MyNode*> leavesForId = trees[y]->getLeaves();  
-      for(unsigned l = 0; l < leavesForId.size(); ++l) {
-        iter= association.find((* leavesForId[l]).getName());	
-        leavesForId[l]->getInfos().setStid(iter->second);
-        idLeaves[y].push_back(iter->second);
-      }	
-      sort(idLeaves[y].begin(),idLeaves[y].end());
-    }
-    
-    if(trees.size()>1){
-      //newick.write(* trees[t], outputPath, false);	
-      for(unsigned int i = 0; i < trees.size(); i++) delete trees[i];				
-    } else cout << "In file " << listPath << " there is only a tree...\n";
+		       
+		string outputPath = ApplicationTools::getAFilePath("output.tree.file", params, false, false, "",true,"MAST-RL.txt");
+		ApplicationTools::displayResult("Output file", outputPath);
 
-  } catch (std::exception&  e) {
-    quit(e.what(), -1);
-  }
+	  	vector<MyTree *> trees;
+	      
+	  	//Reading trees to root
+		trees = readTrees(listPath);
+		
+	  	vector < string> leaves[trees.size() +1];
+	  		  	
+	  	for(unsigned int y=0;y< trees.size();y++){
+			leaves[y]= (* trees[y]).getLeavesNames();  
+			sort(leaves[y].begin(), leaves[y].end());
+		}
+		
+	  	vector <string> AllLeaves = allLeaves(leaves, trees.size());
+	  	
+	  	map<string,int> association;
+	  	map<string,int>::iterator iter;
+	  	
+	  	for (unsigned int i =0;i<  AllLeaves.size(); i++){
+	  		association.insert( make_pair(  AllLeaves[i], i));
+		}  	
+	  	vector < int> idLeaves[trees.size() +1];
+	  			
+	  	for(unsigned int y=0;y< trees.size();y++){
+	  		vector <MyNode * >  leavesForId= (* trees[y]).getLeaves();  
+			for(unsigned int l=0;l< leavesForId.size();l++){		  
+				iter= association.find((* leavesForId[l]).getName());	
+				((* leavesForId[l]).getInfos()).setStid(iter->second);
+				(idLeaves[y]).push_back(iter->second);
+			}	
+			sort(idLeaves[y].begin(),idLeaves[y].end());
+	  	}
+	  	
+		
+		if(trees.size()>1){
+		    //newick.write(* trees[t], outputPath, false);	
+			for(unsigned int i = 0; i < trees.size(); i++) delete trees[i];
+					
+		}
+		else{
+			cout << "In file " << listPath << " there is only a tree...\n";
+		}	
+	
 	return 0;
-}
+};	
 	
 		
 		
