@@ -10,10 +10,10 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
 # --- the IMPROVED_FIND_LIBRARY macro (taken from the Bio++ CMakeLists.txt) ---
 macro(IMPROVED_FIND_LIBRARY OUTPUT_LIBS lib_name include_to_find)
-  FIND_PATH(${lib_name}_INCLUDE_DIR ${include_to_find} PATHS ENV HOME PATH_SUFFIXES bpp-phyl-2.2.0/src bpp-seq-2.2.0/src bpp-core-2.2.0/src )
-  message ( "${lib_name} found at ${${lib_name}_INCLUDE_DIR}" )
+    FIND_PATH(${lib_name}_INCLUDE_DIR  ${include_to_find} PATHS ENV HOME PATH_SUFFIXES local/bpp-phyl-2.2.0/src local/bpp-seq-2.2.0/src local/bpp-core-2.2.0/src bpp-phyl-2.2.0/src bpp-seq-2.2.0/src bpp-core-2.2.0/src )
+    message ( "${include_to_find} ${lib_name} found at ${VAR}" )
   SET(${lib_name}_NAMES ${lib_name} ${lib_name}lib ${lib_name}dll)
-  FIND_LIBRARY(${lib_name}_LIBRARY NAMES ${${lib_name}_NAMES} PATHS ENV HOME PATH_SUFFIXES bpp-phyl-2.2.0/src bpp-seq-2.2.0/src bpp-core-2.2.0/src )
+  FIND_LIBRARY(${lib_name}_LIBRARY NAMES ${${lib_name}_NAMES} PATHS ENV HOME PATH_SUFFIXES local/bpp-phyl-2.2.0/src local/bpp-seq-2.2.0/src local/bpp-core-2.2.0/src  bpp-phyl-2.2.0/src bpp-seq-2.2.0/src bpp-core-2.2.0/src )
 
   IF(${lib_name}_LIBRARY)
       MESSAGE("-- Library ${lib_name} found here:")
