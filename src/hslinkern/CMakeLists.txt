@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 2.6)
-project(hslinkern)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 set (hslinkern_VERSION_MAJOR 0)
