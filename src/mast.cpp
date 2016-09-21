@@ -104,13 +104,11 @@ int main(int args, char ** argv){
 		string listPath = ApplicationTools::getAFilePath("input.list.file", params);
 		ApplicationTools::displayResult("Input list file", listPath);
 		if(listPath == "none") throw Exception("You must provide an input tree list file.");
-	    int d =  ApplicationTools::getDoubleParameter("bootstrap.treshold", params, 0);
+	    int d =  ApplicationTools::getDoubleParameter("max.distance", params, 1);
 
 		       
-		string outputPath = ApplicationTools::getAFilePath("output.tree.file", params, true, false);
+		string outputPath = ApplicationTools::getAFilePath("output.tree.file", params, false, false, "",true,"MAST-RL.txt");
 		ApplicationTools::displayResult("Output file", outputPath);
-		if(outputPath == "none") throw Exception("You must provide an output file.");
-		      
 
 	  	vector<MyTree *> trees;
 	      
