@@ -7,5 +7,7 @@ set (hslinkern_NAME \"hslinkern\")
 
 set(CMAKE_CXX_FLAGS "-g3 -Wall -O3")
 
-add_library(hslinkern STATIC hslinkern.cpp db_map.cpp)
+# add_library(hslinkern STATIC hslinkern.cpp db_map.cpp)
+set(SOURCES hslinkern.cpp bitops.cpp db_map.cpp Hypergraph.cpp )
+add_library(hslinkern ${SOURCES})
 

@@ -6,7 +6,7 @@ set (mast_VERSION_MINOR 0)
 
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=c++11")
 
 # --- the IMPROVED_FIND_LIBRARY macro (taken from the Bio++ CMakeLists.txt) ---
 macro(IMPROVED_FIND_LIBRARY OUTPUT_LIBS lib_name include_to_find)
@@ -43,11 +43,11 @@ IMPROVED_FIND_LIBRARY(LIBS bpp-core Bpp/Clonable.h)
 find_package(Boost REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
-include_directories("include")
+include_directories("hslinkern")
 
 # Source Directory
 add_subdirectory ( "hslinkern" )
 add_executable( "${PROJECT_NAME}" "${PROJECT_NAME}.cpp" )
-target_link_libraries ( "${PROJECT_NAME}" "${LIBS}" )
+target_link_libraries ( "${PROJECT_NAME}" "${LIBS}" "hslinkern" )
 
 
