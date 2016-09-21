@@ -71,8 +71,6 @@ int main(int argc, char *argv[]) {
   cout << "Upper bound HS     : " << k << endl;
   cout << "Lower bound HS     : " << apx.size() << endl;
 
-  initialize_db(G, stats);
-
     //    return 0;
     //  }
   Hypergraph H(kernelize(G, stats, k));

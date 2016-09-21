@@ -9,6 +9,8 @@ Hypergraph kernelize(const Hypergraph &G, const Graphstats &s, unsigned int k) {
 
   cout << endl << "... computing kernel for k = " << k << " ..." << endl;
   
+  initialize_db(G, s);
+  
   for(Hypergraph::const_iterator i = G.begin(); i != G.end(); ++i) {
     petals_less_than lt(k);
     foreach_intersection(G, *i, s, lt);
