@@ -16,9 +16,9 @@ message("Options: (enable with -D<option>=ON & disable with -D<option>=OFF)")
 message("debug mode (DEBUG)             " ${DEBUG} )
 message("static build (STATIC)          " ${STATIC} )
 
-set (source_files ${project}.cpp AUTHORS BUGS COPYING INSTALL README THANKS)
+set (source_files ${PROJECT_NAME}.cpp AUTHORS BUGS COPYING INSTALL README THANKS)
 
-add_custom_target ( archive tar -cjf ${project}.tar.bz2 ${source_files} )
+add_custom_target ( archive tar -cjf ${PROJECT_NAME}.tar.bz2 ${source_files} )
 add_custom_target ( doc doxygen Doxyfile )
 
 include_directories ("${PROJECT_SOURCE_DIR}")
@@ -52,4 +52,5 @@ set(CMAKE_COMMON_FLAGS "${CMAKE_COMMON_FLAGS} -pthread -Wall -fmax-errors=2 -fte
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_COMMON_FLAGS}")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_COMMON_FLAGS} -O3 -march=native -DNDEBUG -pipe -m64 -msahf -fno-stack-protector")
 
+ADD_EXECUTABLE( "${PROJECT_NAME}" "${PROJECT_NAME}.cpp" )
 
