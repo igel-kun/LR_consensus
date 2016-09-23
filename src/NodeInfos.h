@@ -16,138 +16,171 @@
 using namespace std;
 
 class NodeInfos  {
-  typedef NodeTemplate<NodeInfos> MyNode;
+	 typedef NodeTemplate<NodeInfos> MyNode;
+		protected:
+
+		int depth; 
+		int numberOfDescendents;
+		int stId;
+
+		//not used for now
+
+	    vector<int> clade;
+		vector<string> cladeNames;
+		vector <MyNode*>  cladeNode;
+		vector <MyNode*>  cladeNodeAbove;
+		vector <MyNode*> cladeNodeAboveDuplications;
+		int counter;
+		bool square;	
+		bool visited;	
+
+	public:
+
+		void setStid(int id){
+			stId = id;
+		}
 		
-  protected:
-  vector<int> clade;
-  vector<string> cladeNames;
-  vector<MyNode*>  cladeNode;
-  vector<MyNode*>  cladeNodeAbove;
-  vector<MyNode*> cladeNodeAboveDuplications;
-  int counter;
-  bool square;	
-  bool visited;
-  int stId;
+		int getStid(){
+			return stId ;
+		}
+		
 
-  public:
-
-	void copyInClade(const vector<int>& leaves)
-  {
-		clade = leaves;
-	}
-
-  void copyInCladeNames(const vector<string>& leaves)
-  {
-    cladeNames = leaves;
-  }
+        void setDepth(int id){
+			depth = id;
+		}
+		
+		int getDepth(){
+			return depth ;
+		}
+		
+		void setNumberOfDescendents(int id){
+			numberOfDescendents = id;
+		}
+		
+		int getNumberOfDescendents(){
+			return numberOfDescendents;
+		}
 	
-  void copyInCladeNode(const vector<MyNode*>& leaves)
-  {
-    cladeNode = leaves;
-	}
+		//not used for now		
+
+		void copyInClade(vector <int> leaves){
+			(clade).clear(); 
+			for( unsigned int i = 0; i <  leaves.size(); i++ ){
+     				(clade).push_back( leaves[i] );
+			}
+		}
 		
-	void copyInCladeNodeAbove(const vector<MyNode*>& leaves)
-  {
-    cladeNodeAbove = leaves;
-  }	
+		void copyInCladeNames(vector <string> leaves){
+			(cladeNames).clear(); 
+			for( unsigned int i = 0; i <  leaves.size(); i++ ){
+     				(cladeNames).push_back( leaves[i] );
+			}
+		}
 		
-	void copyInCladeNodeAboveDuplications(const vector<MyNode*>& leaves)
-  {
-    cladeNodeAboveDuplications = leaves;
-	}	
 		
-	void copyInCladeNodeAboveNoClearDuplications(const vector<MyNode*>& leaves)
-  {
-    copy(leaves.begin(), leaves.end(), back_inserter(cladeNodeAboveDuplications));
-	}	
+		void copyInCladeNode(vector <MyNode *> leaves){
+			(cladeNode).clear();
+			for( unsigned int i = 0; i <  leaves.size(); i++ ){
+     				(cladeNode).push_back(  leaves[i] );
+			}
+		}
+		
+		void copyInCladeNodeAbove(vector <MyNode *> leaves){
+			(cladeNodeAbove).clear();
+			for( unsigned int i = 0; i <  leaves.size(); i++ ){
+     				(cladeNodeAbove).push_back(  leaves[i] );
+			}
+		}	
+		
+		void copyInCladeNodeAboveDuplications(vector <MyNode *> leaves){
+			(cladeNodeAboveDuplications).clear();
+			for( unsigned int i = 0; i <  leaves.size(); i++ ){
+     				(cladeNodeAboveDuplications).push_back(  leaves[i] );
+			}
+		}	
+		
+		void copyInCladeNodeAboveNoClearDuplications(vector <MyNode *> leaves){
+			for( unsigned int i = 0; i <  leaves.size(); i++ )
+     			(cladeNodeAboveDuplications).push_back(  leaves[i] );
+		}	
 			
-	void copyInCladeNodeAboveNoClear(const vector<MyNode*>& leaves)
-  {
-    copy(leaves.begin(), leaves.end(), back_inserter(cladeNodeAbove));
-  }	
+		void copyInCladeNodeAboveNoClear(vector <MyNode *> leaves){
+			for( unsigned int i = 0; i <  leaves.size(); i++ )
+     			(cladeNodeAbove).push_back(  leaves[i] );
+		}	
 		
-	void setCladeNodeAbove(const vector<MyNode*>& leaves)
-  {
+		void setCladeNodeAbove(vector <MyNode *> leaves){
 			cladeNodeAbove = leaves;
-	}
+		}
 		
-	void setCladeNodeAboveDuplications(const vector<MyNode*>& leaves){
-	  cladeNodeAboveDuplications = leaves;
-	}
+		void setCladeNodeAboveDuplications(vector <MyNode *> leaves){
+			cladeNodeAboveDuplications = leaves;
+		}
 		
-	const vector<MyNode*>& getCladeNode() const
-  {
-	  return cladeNode;
-	}
-
-  const vector<MyNode*>& getCladeNodeAbove() const
-  {
-	  return cladeNodeAbove;
-	}
-
-	const vector<MyNode*>& getCladeNodeAboveDuplications() const
-  {
-	  return cladeNodeAboveDuplications;
-	} 
+		vector <MyNode * >getCladeNode(){
+			return cladeNode;
+		} 
+		vector <MyNode * >getCladeNodeAbove(){
+			return cladeNodeAbove;
+		} 
 		
-	const vector<int>& getClade() const
-  {
-	  return clade;
-	}
+		vector <MyNode * >getCladeNodeAboveDuplications(){
+			return cladeNodeAboveDuplications;
+		} 
 		
-	const vector<string>& getCladeNames() const
-  {
-	  return cladeNames;
-	}
+		vector<int> getClade(){
+			return clade;
+		};
+		
+		vector<string> getCladeNames(){
+			return cladeNames;
+		};
 	
-	void setStid(int id)
-  {
-	  stId = id;
-	}
 		
-	int getStid()
-  {
-	  return stId ;
-	}
+		void eraseCladeNode(){
+			int j= cladeNode.size();
+			for(int i = 0; i <  j; i++ ){
+     				(cladeNode).pop_back();
+			}
+		}
 		
+		void eraseCladeNodeAbove(){	
+			int j = cladeNodeAbove.size();
+			for(int i = 0; i <  j; i++ ){
+     				(cladeNodeAbove).pop_back();
+			}
+		}
 		
-	void eraseCladeNode()
-  {
-	  cladeNode.clear();
-	}
-		
-	void eraseCladeNodeAbove()
-  {
-    cladeNodeAbove.clear();
-  }
-		
-	void eraseCladeNodeAboveDuplications()
-  {
-    cladeNodeAboveDuplications.clear();
-  }
+		void eraseCladeNodeAboveDuplications(){	
+			int j = cladeNodeAboveDuplications.size();
+			for(int i = 0; i <  j; i++ ){
+     				(cladeNodeAboveDuplications).pop_back();
+			}
+		}
 					
-  void setVisited(bool a) {visited = a;};
-  bool getVisited(){return visited;};
-  
-  void setSquare(bool a) { square = a;};
-  bool getSquare(){return square;};
-  
-  void setCounter(int a) {counter= a;};
-  void addCounter() {counter ++;};
-  int getCounter(){return counter;};	
-  
-  void copyInCladeNodeLinear(MyNode *leaves){
-    //(cladeNode).clear();
-    cladeNode.push_back(  leaves );
-  }
-  
-  void copyInCladeNodeAboveLinear(MyNode *leaves){
-    //(cladeNodeAbove).clear();
-    cladeNodeAbove.push_back(  leaves );		
-  }	
+		void setVisited(bool a) {visited = a;};
+		bool getVisited(){return visited;};
+		
+		void setSquare(bool a) { square = a;};
+		bool getSquare(){return square;};
+		
+		void setCounter(int a) {counter= a;};
+		void addCounter() {counter ++;};
+		int getCounter(){return counter;};	
+		
+		void copyInCladeNodeLinear(MyNode *leaves){
+			//(cladeNode).clear();
+			(cladeNode).push_back(  leaves );
+		}
+		
+		void copyInCladeNodeAboveLinear(MyNode *leaves){
+			//(cladeNodeAbove).clear();
+			(cladeNodeAbove).push_back(  leaves );		
+		}	
+
+		
 		
 };
 
 #endif /*NODEINFOS_H_*/
-
 

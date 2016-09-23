@@ -13,72 +13,31 @@ typedef NodeTemplate<NodeInfos> MyNode;
 
 class MyTree: public TreeTemplate<MyNode> {
 public:
-	MyNode** correspondance;
-	MyNode** correspondanceId;
 
-	int dimCorr;
+	MyNode ** correspondanceId ;
 	int dimCorrId;
-	int dimTS;
+
  	MyTree(int dim): TreeTemplate<MyNode>(){}
 
- 	MyTree(MyNode& root): TreeTemplate<MyNode>(& root), correspondance(NULL), correspondanceId(NULL){}
- 	MyTree(MyNode& root, int dim): TreeTemplate<MyNode>(& root), correspondance(new MyNode*[dim]), correspondanceId(new MyNode*[dim]){} 
+ 	MyTree(MyNode & root): TreeTemplate<MyNode>(& root), correspondanceId(NULL){}
+ 	MyTree(MyNode & root,int dim): TreeTemplate<MyNode>(& root), correspondanceId(new MyNode*[dim]){} 
  	
- 	virtual ~MyTree()
-  {
- 		if(correspondance)
- 			delete [] (correspondance);
+ 	virtual ~MyTree(){
  		if(correspondanceId)
  			delete [] (correspondanceId);
  	} 
- 	
-  void setCorrispondanceNull()
-  {
-    for(int i = 0; i < dimCorr; ++i)
- 		  correspondance[i]= NULL; 	
- 	}
- 	
- 	void setCorrispondanceLenght(int dim){
- 		correspondance= new MyNode*[dim];
- 		for(int i = 0; i < dim; i++)
- 			correspondance[i]= NULL;
- 		dimCorr=dim;
- 	}
  	
  	 void setCorrispondanceLenghtId(int dim){
  		correspondanceId= new MyNode*[dim];
  		for(int i = 0; i < dim; i++)
  			correspondanceId[i]= NULL;
- 		dimCorr=dim;
+ 		dimCorrId=dim;
  	}
- 	
- 	
- 	int getCorrispondanceLenght(){
-		return dimCorr;
- 	}
- 	
-	void deleteCorrispondanceLenght(){
- 		delete [] (correspondance);
- 	}
- 	
- 	void resetCorrispondanceLenght(int dim){
- 		for(int i = 0; i < dim; i++)
- 			correspondance[i]= NULL;
- 	}
- 	
+ 		
  	 void resetCorrispondanceLenghtId(int dim){
  		for(int i = 0; i < dim; i++)
  			correspondanceId[i]= NULL;
  	}
-
-	 MyNode * getNodeWithPostOrder(int postOrder){
-	 	return correspondance[postOrder];
-	 }	
-	 
-	 void setNodeWithPostOrder(MyNode * node, int postOrder){
-	 	correspondance[postOrder] = node;
-	 }
-	 
 
 	 void setNodeWithStId(MyNode * node, int stId){
 	 	correspondanceId[stId] = node;
@@ -88,8 +47,32 @@ public:
 	 MyNode * getNodeWithStId(int stId){
 	 	return correspondanceId[stId];
 	 }	
+
+	 void setDepth(MyNode * node){
+	    setDepth();
+	 }	 	 
 	 
+	 void setNumberOfDescendents(MyNode * node){
+	    setNumberOfDescendents();
+	 }
 	 
+	 void setDepth(){
+	    setDepth(this->getRootNode());
+	 }	
+	  	 
+	 void setNumberOfDescendents(){
+	    setNumberOfDescendents(this->getRootNode());
+	 }
+	 	 
+	 void setDepthAndNumberOfDescendents(){
+	    setDepth();
+	    setNumberOfDescendents();
+	 }
+	 
+
+	 
+	//not used for now
+ 
 	 vector<string> getNames(MyNode & node){
 	   	vector<string> stId;
 	  	if(node.isLeaf()){
@@ -119,4 +102,3 @@ public:
 
 
 #endif /*MYTREE_H_*/
-

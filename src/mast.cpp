@@ -34,7 +34,7 @@ using namespace bpp;
 
 #include "NodeInfos.h"
 #include "MyTree.h"
-#include "agreement_kernel.h"
+//#include "agreement_kernel.h"
 
 //typedef NodeTemplate<NodeInfos> MyNode;
 //typedef TreeTemplate<MyNode> MyTree;
@@ -106,7 +106,7 @@ int main(int args, char ** argv){
 	  	//Reading trees to root
 		trees = readTrees(listPath);
 		
-	  	vector < string> leaves[trees.size() +1];
+		vector < string >	 *leaves = new vector < string>[trees.size() +1]; 
 	  		  	
 	  	for(unsigned int y=0;y< trees.size();y++){
 			leaves[y]= (* trees[y]).getLeavesNames();  
@@ -120,17 +120,31 @@ int main(int args, char ** argv){
 	  	
 	  	for (unsigned int i =0;i<  AllLeaves.size(); i++){
 	  		association.insert( make_pair(  AllLeaves[i], i));
+	  		cout <<  AllLeaves[i] <<  i << endl;
 		}  	
-	  	vector < int> idLeaves[trees.size() +1];
 	  			
 	  	for(unsigned int y=0;y< trees.size();y++){
-	  		vector <MyNode * >  leavesForId= (* trees[y]).getLeaves();  
-			for(unsigned int l=0;l< leavesForId.size();l++){		  
-				iter= association.find((* leavesForId[l]).getName());	
-				((* leavesForId[l]).getInfos()).setStid(iter->second);
-				(idLeaves[y]).push_back(iter->second);
-			}	
-			sort(idLeaves[y].begin(),idLeaves[y].end());
+	  	    int maxId = AllLeaves.size(); 
+	  		vector <MyNode * >  nodes= trees[y]->getNodes(); 
+	  		//create a vector of pointers from stIds to nodes
+	  		trees[y]->setCorrispondanceLenghtId(nodes.size());
+			for(unsigned int l=0;l< nodes.size();l++){	
+			// twin leaves will have the same stId in the two trees, associated to the name via the mapping association 
+	  	    // the internal nodes will have stIds starting from maxId up
+			    if(nodes[l]->isLeaf()){	  
+				    iter= association.find( nodes[l]->getName());	
+				    nodes[l]->getInfos().setStid(iter->second);
+				    //set the pointer from stId to node
+				    trees[y]->setNodeWithStId(nodes[l], iter->second);
+				}
+				else{
+				    nodes[l]->getInfos().setStid(maxId);
+				    //set the pointer from stId to node
+				    trees[y]->setNodeWithStId(nodes[l],maxId);
+				    maxId++;
+				}
+			}
+			//trees[y]->setDepthAndNumberOfDescendents();	
 	  	}
 	  	
 		

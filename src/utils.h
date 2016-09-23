@@ -55,7 +55,7 @@ vector < MyTree *>  readTrees(const string & path) throw (Exception) {
         if(temp.size()!=0){
             string::size_type index = temp.find(";");
             if(index== string::npos) throw Exception("readTrees(). Bad format: no semi-colon found.");
-            if(index >= 0 && index < temp.size()) {
+            if(index < temp.size()) {
                 description += temp.substr(0, index + 1);   
                 TreeTemplate<Node> * tree = TreeTemplateTools::parenthesisToTree(description,true);    
                 MyNode * newRoot = TreeTemplateTools::cloneSubtree<MyNode>(* tree -> getRootNode());
@@ -139,6 +139,7 @@ vector < MyTree *>  readTrees(const string & path) throw (Exception) {
       typedef typename Container::const_iterator it;
       bool operator()(const pair<it,it>& x, const pair<it,it>& y) const { return *x.first > *y.first; }
     };
+    
     template<class T>
     vector<T> allLeaves(const vector<T> a[], unsigned size){
       // in the queue, we map the smallest element of each vector to its vector
@@ -163,6 +164,7 @@ vector < MyTree *>  readTrees(const string & path) throw (Exception) {
         if(++smallest.first != smallest.second)
           smallest_items.emplace(smallest);
       }
+      return result;
     }
 
 
