@@ -49,24 +49,38 @@ public:
 	 }	
 
 	 void setDepth(MyNode * node){
-	    setDepth();
+	 	if(TreeTemplateTools::isRoot(* node)){
+	 		node->getInfos().setDepth(0); //root has depth 0
+	 	}
+	 	else{
+	 		node->getInfos().setDepth(node->getFather()->getInfos().getDepth() +1); //otherwise depth of father +1
+	 	}
+		for(unsigned int i = 0; i < node->getNumberOfSons(); i++){
+			setDepth(node->getSon(i)); // recursive calls for sons
+		}	
 	 }	 	 
 	 
-	 void setNumberOfDescendents(MyNode * node){
-	    setNumberOfDescendents();
+	 void setNumberOfDescendents(MyNode * node){	    
+	 	for(unsigned int i = 0; i < node->getNumberOfSons(); i++){
+			setNumberOfDescendents(node->getSon(i)); // recursive calls for sons
+		}	
+		if(node->isLeaf()){
+	 		node->getInfos().setNumberOfDescendents(0); //leaves have no descendants 
+	 	}
+	 	else{
+	 		int tempNumberOfDescendent=0;
+	 		for(unsigned int i = 0; i < node->getNumberOfSons(); i++)
+	 			tempNumberOfDescendent += (node->getSon(i)->getInfos().getNumberOfDescendents() +1); //adding up all the descendants of sons + sons 
+	 		node->getInfos().setNumberOfDescendents(tempNumberOfDescendent);	
+	 	}
 	 }
 	 
-	 void setDepth(){
-	    setDepth(this->getRootNode());
-	 }	
-	  	 
-	 void setNumberOfDescendents(){
-	    setNumberOfDescendents(this->getRootNode());
-	 }
 	 	 
 	 void setDepthAndNumberOfDescendents(){
-	    setDepth();
-	    setNumberOfDescendents();
+	    setDepth(this->getRootNode());
+	    setNumberOfDescendents(this->getRootNode());
+	    
+
 	 }
 	 
 

@@ -34,7 +34,7 @@ using namespace bpp;
 
 #include "NodeInfos.h"
 #include "MyTree.h"
-//#include "agreement_kernel.h"
+#include "agreement_kernel.h"
 
 //typedef NodeTemplate<NodeInfos> MyNode;
 //typedef TreeTemplate<MyNode> MyTree;
@@ -120,7 +120,6 @@ int main(int args, char ** argv){
 	  	
 	  	for (unsigned int i =0;i<  AllLeaves.size(); i++){
 	  		association.insert( make_pair(  AllLeaves[i], i));
-	  		cout <<  AllLeaves[i] <<  i << endl;
 		}  	
 	  			
 	  	for(unsigned int y=0;y< trees.size();y++){
@@ -144,7 +143,7 @@ int main(int args, char ** argv){
 				    maxId++;
 				}
 			}
-			//trees[y]->setDepthAndNumberOfDescendents();	
+			trees[y]->setDepthAndNumberOfDescendents();	
 	  	}
 	  	
 		
