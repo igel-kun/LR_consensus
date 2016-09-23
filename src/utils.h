@@ -8,6 +8,7 @@
 #ifndef UTILS_H_
 #define UTILS_H_
 
+#include "MyTree.h"
 
 /**
  * @brief This function collapses the edge having the node on as end.
@@ -158,8 +159,9 @@ vector < MyTree *>  readTrees(const string & path) throw (Exception) {
       while(!smallest_items.empty()){
         T_iterpair smallest = smallest_items.top();
         smallest_items.pop();
-        // add the item to the result
-        result.push_back(*smallest.first);
+        // add the item to the result avoiding duplicates
+        if(*smallest.first != *result.rbegin())
+          result.push_back(*smallest.first);
         // see if we're at the end of the corresponding vector
         if(++smallest.first != smallest.second)
           smallest_items.emplace(smallest);
