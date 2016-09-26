@@ -105,6 +105,20 @@ public:
 	 }
 	 
 	 
+	 void setPreOrder(MyNode * node, int & maxPreorder){	    
+	 	for(unsigned int i = 0; i < node->getNumberOfSons(); i++){
+			setPreOrder(node->getSon(i),maxPreorder); 
+		}	
+		if(node->isLeaf()){
+	 		node->getInfos().setPreOrder(++maxPreorder); 
+	 	}
+	 }
+	 
+	 void setPreOrder(){
+	 	setPreOrder(this.getRootNode(),0);  
+	 }
+	 
+	 
 	//not used for now
  
 	 vector<string> getNames(MyNode & node){
@@ -130,6 +144,7 @@ public:
 	   	}
 	   	return stId;   
 	 }
+	 
 
 
   //======================== LCA code =========================
