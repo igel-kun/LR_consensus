@@ -23,6 +23,8 @@ class NodeInfos  {
 		int depth; 
 		int numberOfDescendents;
 		int stId;
+		int preorder;
+
 
 		//not used for now
 
@@ -44,7 +46,16 @@ class NodeInfos  {
 		int getCentroidPathNumber(){
 			return centroidPathNumber ;
 		}
+	
+		void setPreorder(int id){
+			preorder = id;
+		}
 		
+		int getPreorder(){
+			return preorder ;
+		}
+		
+			
 		void setStId(int id){
 			stId = id;
 		}

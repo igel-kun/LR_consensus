@@ -123,7 +123,7 @@ int main(int args, char ** argv){
 	  		association.insert( make_pair(  AllLeaves[i], i));
 		}  	
 	  			
-	  	for(unsigned int y=0;y< trees.size();y++){
+	  	/*for(unsigned int y=0;y< trees.size();y++){
 	  	    int maxId = AllLeaves.size(); 
 	  		vector <MyNode * >  nodes= trees[y]->getNodes(); 
 	  		//create a vector of pointers from stIds to nodes
@@ -144,7 +144,7 @@ int main(int args, char ** argv){
 				    maxId++;
 				}
 			}
-	  	}
+	  	}*/
 	  	
 		
 		if(trees.size()>1){
