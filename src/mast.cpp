@@ -39,6 +39,7 @@ using namespace bpp;
 //typedef NodeTemplate<NodeInfos> MyNode;
 //typedef TreeTemplate<MyNode> MyTree;
 
+#include "mast.h"
 #include "utils.h"
 
 
@@ -132,12 +133,12 @@ int main(int args, char ** argv){
 	  	    // the internal nodes will have stIds starting from maxId up
 			    if(nodes[l]->isLeaf()){	  
 				    iter= association.find( nodes[l]->getName());	
-				    nodes[l]->getInfos().setStid(iter->second);
+				    nodes[l]->getInfos().setStId(iter->second);
 				    //set the pointer from stId to node
 				    trees[y]->setNodeWithStId(nodes[l], iter->second);
 				}
 				else{
-				    nodes[l]->getInfos().setStid(maxId);
+				    nodes[l]->getInfos().setStId(maxId);
 				    //set the pointer from stId to node
 				    trees[y]->setNodeWithStId(nodes[l],maxId);
 				    maxId++;
