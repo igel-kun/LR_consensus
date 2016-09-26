@@ -16,10 +16,10 @@ MyTree * restrictTree(MyTree * tree, vector<int> idsLeaves){
 	//defining the node set
 	for(unsigned int y=0;y< idsLeaves.size()-1;y++){
 		ids.push_back(idsLeaves[y]);
-		int idNode = 0;//tree->getLCA(idsLeaves[y],idsLeaves[y+1]); //internal nodes  
+		int idNode = tree->getLCA(tree->getNodeWithStId(idsLeaves[y]),tree->getNodeWithStId(idsLeaves[y+1]))->getInfos().getStId(); //internal nodes  
 		ids.push_back(idNode);
 	}
-	ids.push_back(ids.size());
+	ids.push_back(idsLeaves[idsLeaves.size()-1]);
 	
 	MyTree * restrictedTree ;
 	restrictedTree->setCorrispondanceLenghtId(ids.size());
@@ -67,7 +67,7 @@ MyTree * restrictTree(MyTree * tree, vector<int> idsLeaves){
 		}
 		else if(vleft==-1 && vright==-1){
 			restrictedTree->setRootNode(newNode);
-			restrictedTree->resetNodesId();
+			//restrictedTree->resetNodesId();
 		}
 		
 		else{
@@ -77,6 +77,8 @@ MyTree * restrictTree(MyTree * tree, vector<int> idsLeaves){
 				restrictedTree->getNodeWithStId(vright)->addSon(newNode);
 		}
 	}
+	
+	restrictedTree->resetNodesId();
 	return restrictedTree;
 
 }
@@ -111,18 +113,22 @@ void mast(vector<MyTree *> trees, map<string,int> association)
 		//STEP 1
 	
 		trees[y]->getCentroidDecompostion();
+		trees[y]->lca_preprocess();
 	}
 	
 	//STEP 2
 	
 	trees[1]->setPreOrder();
-	vector < MyNode * > tempLeaves = trees[1]->getLeaves();
-	int orderedIds[tempLeaves.size()] ; //leaf ids ordered in preorder in T2
-	for(unsigned int y=0;y< tempLeaves.size();y++){
-		orderedIds[tempLeaves[y]->getInfos().getPreorder()] = tempLeaves[y]->getInfos().getStId();
+	vector < MyNode * > leavesSecondTree = trees[1]->getLeaves();
+	int corrMi[leavesSecondTree.size()];
+
+	int orderedIds[leavesSecondTree.size()] ; //leaf ids ordered in preorder in T2
+	for(unsigned int y=0;y< leavesSecondTree.size();y++){
+		orderedIds[leavesSecondTree[y]->getInfos().getPreOrder()] = leavesSecondTree[y]->getInfos().getStId();
 	}
 	vector < MyNode * > rootsOfMiSubtrees; // the roots of the subtrees that are hanging from the centroid path of the root
 	MyNode * currentNode = trees[0]->getRootNode();
+	int i=0;
 	while(! currentNode->isLeaf()){
 	     if(currentNode->getSon(0)->getInfos().getCentroidPathNumber()==0){
 	     	currentNode = currentNode->getSon(0);
@@ -132,19 +138,30 @@ void mast(vector<MyTree *> trees, map<string,int> association)
 	     	currentNode = currentNode->getSon(1);
 	     	rootsOfMiSubtrees.push_back( currentNode->getSon(0));
 	     }
-	}  
+	     vector < MyNode * > leavesNode = TreeTemplateTools::getLeaves(* rootsOfMiSubtrees[rootsOfMiSubtrees.size()]);
+		 for(unsigned int y=0;y< leavesNode.size();y++){
+			corrMi[leavesNode[y]->getInfos().getStId()]	=i ; //this leaf is in subtree Mi	
+		 }
+	     i++;
+
+	} 
+	
+	
+	vector<int> * corrMiT2 = new vector<int>[i-1];
+	
+	for(unsigned int y=0;y< leavesSecondTree.size();y++){
+		corrMiT2[corrMi[orderedIds[y]]].push_back(orderedIds[y]); // to comment
+	}
 	  
 	for(unsigned int y=0;y< rootsOfMiSubtrees.size();y++){
-		vector<MyTree *> recoursiveCallTrees;
-		recoursiveCallTrees.push_back(new MyTree(* rootsOfMiSubtrees[y])); // subtrees Mi in T1
-	}
- 
-	     
-	
-	
 
+		vector<MyTree *> recursiveCallTrees;
+		recursiveCallTrees.push_back(new MyTree(* rootsOfMiSubtrees[y])); // subtrees Mi in T1
+		recursiveCallTrees.push_back(restrictTree(trees[1], corrMiT2[y]));
+		mast(recursiveCallTrees, association);
+	}
+	delete [] corrMiT2;
 	
- //preprocessings, LCA prep here;
-}
+ }
 
 #endif /*MAST_H_*/

@@ -101,7 +101,7 @@ public:
 	 
 	 	 
 	 void getCentroidDecompostion(){
-	 	getCentroidDecompostion(this->getRootNode(),0);  
+	 	getCentroidDecompostion(getRootNode(),0);  
 	 }
 	 
 	 
@@ -115,7 +115,8 @@ public:
 	 }
 	 
 	 void setPreOrder(){
-	 	setPreOrder(this.getRootNode(),0);  
+	 	int zero =0;
+	 	setPreOrder(this->getRootNode(),zero);  
 	 }
 	 
 	 
@@ -181,7 +182,11 @@ public:
   {
     return lca_oracle->query(u, v);
   }
- 
+  const MyNode* getLCA(const MyNode * u, const MyNode * v) const
+  {
+    return lca_oracle->query(*u, *v);
+  }
+   
 };	
 
 

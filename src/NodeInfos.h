@@ -47,11 +47,11 @@ class NodeInfos  {
 			return centroidPathNumber ;
 		}
 	
-		void setPreorder(int id){
+		void setPreOrder(int id){
 			preorder = id;
 		}
 		
-		int getPreorder(){
+		int getPreOrder(){
 			return preorder ;
 		}
 		
