@@ -16,6 +16,7 @@ public:
 
 	MyNode ** correspondanceId ;
 	int dimCorrId;
+	//vector< int > centroidPaths ;
 
  	MyTree(int dim): TreeTemplate<MyNode>(){}
 
@@ -84,6 +85,34 @@ public:
 	 }
 	 
 
+	 //construct the centroid decomposition of a tree
+	 
+	 void getCentroidDecompostion(MyNode * node, int maxPartition){
+	 	node->getInfos().setCentroidPathNumber(maxPartition);
+	 	int maxDesc=0;
+	 	int chosenChild=0;
+	 	for(unsigned int i = 0; i < node->getNumberOfSons(); i++){
+	     	int numbDesc = node->getSon(i)->getInfos().getNumberOfDescendents() ;
+	     	if(numbDesc>maxDesc)
+	     		chosenChild=i;
+	     	
+	   	}
+	   	for(unsigned int i = 0; i < node->getNumberOfSons(); i++){
+	   		if(i== chosenChild){
+	   			getCentroidDecompostion(node->getSon(i),maxPartition);  //the child with the higher number of sons stay in the same centroid path than the father (ties broken arbitrarly)
+	   		}
+	   		else{
+	   		  	getCentroidDecompostion(node->getSon(i),++maxPartition); // the other start new centroid paths
+	   		}
+	   	}
+
+	 }
+	 
+	 	 
+	 void getCentroidDecompostion(){
+	 	getCentroidDecompostion(this->getRootNode(),0);  
+	 }
+	 
 	 
 	//not used for now
  
@@ -110,7 +139,8 @@ public:
 	   	}
 	   	return stId;   
 	 }
-	 
+
+
 	 
 };	
 

@@ -143,7 +143,6 @@ int main(int args, char ** argv){
 				    maxId++;
 				}
 			}
-			trees[y]->setDepthAndNumberOfDescendents();	
 	  	}
 	  	
 		

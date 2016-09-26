@@ -18,7 +18,8 @@ using namespace std;
 class NodeInfos  {
 	 typedef NodeTemplate<NodeInfos> MyNode;
 		protected:
-
+		
+		int centroidPathNumber;
 		int depth; 
 		int numberOfDescendents;
 		int stId;
@@ -36,6 +37,14 @@ class NodeInfos  {
 
 	public:
 
+        void setCentroidPathNumber(int id){
+			centroidPathNumber = id;
+		}
+		
+		int getCentroidPathNumber(){
+			return centroidPathNumber ;
+		}
+		
 		void setStid(int id){
 			stId = id;
 		}
