@@ -45,11 +45,11 @@ class NodeInfos  {
 			return centroidPathNumber ;
 		}
 		
-		void setStid(int id){
+		void setStId(int id){
 			stId = id;
 		}
 		
-		int getStid(){
+		int getStId(){
 			return stId ;
 		}
 		

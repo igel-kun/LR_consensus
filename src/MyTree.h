@@ -131,7 +131,7 @@ public:
 	vector<int> getLeavesStId(MyNode & node){
 	   	vector<int> stId;
 	  	if(node.isLeaf()){
-	     	stId.push_back(node.getInfos().getStid());
+	     	stId.push_back(node.getInfos().getStId());
 	  	 }
 	  	 for(unsigned int i = 0; i < node.getNumberOfSons(); i++){
 	     	vector<int> subStId = getLeavesStId(* node.getSon(i));
