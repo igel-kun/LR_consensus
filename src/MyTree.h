@@ -134,18 +134,32 @@ public:
 
   //======================== LCA code =========================
 protected:
-  struct access_stId_type {
-    unsigned operator()(const MyNode& u) const { return u.getInfos().getStid(); }
+  //! access node stId's
+  struct access_stId {
+    int operator[](const MyNode& u) const { return u.getInfos().getStId(); }
   };
-  typedef lca<MyNode, unsigned, const access_stId_type> LCA_Oracle;
+  // access node children
+  struct access_children {
+    // damn you Bio++ for not giving me access to the ::sons_ vector!!!
+    // for now, I'll make my own copy of the sons vector...
+    const vector<const MyNode*> operator[](const MyNode& u) const {
+      vector<const MyNode*> result;
+      const unsigned num_children = u.getNumberOfSons();
+      result.reserve(num_children);
+      for(unsigned i = 0; i < num_children; ++i)
+        result.push_back(u[i]);
+      return result;
+    }
+  };
 
-  const access_stId_type access_stId = access_stId_type();
+  typedef lca<MyNode, int, const access_stId, const access_children> LCA_Oracle;
+
   LCA_Oracle* lca_oracle = NULL;
 
 public:
   void lca_preprocess()
   {
-    lca_oracle = new LCA_Oracle(getRootNode(), max_sId, access_stId);
+    lca_oracle = new LCA_Oracle(*getRootNode(), dimCorrId, access_stId(), access_children());
   }
 
   const MyNode* getLCA(const MyNode& u, const MyNode& v) const

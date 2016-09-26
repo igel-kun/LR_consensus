@@ -3,97 +3,106 @@
  * implementation, actually) on the Euler tour of the tree.
  */
 
+#pragma once
+
 #include <algorithm>
 #include <memory>
 #include <vector>
 
+#include "pm_rmq.hpp"
 #include "tree.hpp"
 
+template<typename node_type, typename id_type = unsigned>
+struct NodeToIdx
+{
+  const id_type operator[](const node_type& node) const { return node.get_id(); }
+};
+
+template<typename node_type>
+struct NodeToChildren
+{
+  const std::vector<const node_type*> operator[](const node_type& node) const { return node.children(); }
+};
+
+
 template<
-  typename value_type,
-  typename rmq_impl
+  typename node_type,
+  typename node_id_type = unsigned,
+  class node_to_id_type = const NodeToIdx<node_type, node_id_type>,
+  class node_to_children_type = const NodeToChildren<node_type>,
+  typename rmq_impl = pm_rmq<std::vector<ssize_t>::const_iterator>
   >
-class lca {
+class lca 
+{
+  const node_type &_root_node; //< Input tree structure.
+  const node_to_id_type _node_to_id; //< get the id of nodes
+  const node_to_children_type _get_children; //< get the children of nodes
+  std::vector<const node_type*> _euler_tour; //< The Euler tour of the input.
+  std::vector<node_id_type> _node_id_to_euler_index; //< translate a node_id to an index in the Euler tour
 
-  /**
-   * Input tree structure.
-   */
-  const tree<value_type> &_input;
+  // A vector of the same length as the Euler tour, stores the depth of
+  // the node from which the ith element of the Euler tour came.
+  std::vector<ssize_t> _depth;
 
-  /**
-   * The Euler tour of the input.
-   */
-  std::vector<value_type> _euler;
-
-  /**
-   * A vector of the same length as the Euler tour, stores the level of
-   * the node from which the ith element of the Euler tour came.
-   */
-  std::vector<ssize_t> _level;
-
-  /**
-   * The ±1 RMQ data structure for the _level array.
-   */
+  // The ±1 RMQ data structure for the _depth array.
   std::unique_ptr<rmq_impl> _rmq;
 
-  template<
-    typename OutputIterator1,
-    typename OutputIterator2
-    >
-  void preprocess(const tree<value_type> &t,
-                  ssize_t level,
-                  OutputIterator1 eulerit,
-                  OutputIterator2 levelit) {
+  void register_vertex_in_euler_tour(const node_type& node,
+                                     const unsigned depth)
+  {
+    auto node_id = _node_to_id[node];
+    if(node_id >= _node_id_to_euler_index.size())
+      _node_id_to_euler_index.resize(node_id + 1);
+    _node_id_to_euler_index[node_id] = _euler_tour.size();
+    _euler_tour.push_back(&node);
+    _depth.push_back(depth);
+  }
+
+  void preprocess(const node_type &node, unsigned depth){
     // Constructs an Euler tour by running a DFS on the tree, emitting the
     // root of each subtree upon arrival and also upon completion of the
     // search of each of its children.
-    auto val = t.id();
-    *eulerit++ = val;
-    *levelit++ = level;
+    register_vertex_in_euler_tour(node, depth);
 
-    // In the paper, we use a "representative array" R, which maps node
-    // ids to an index in the Euler tour.  Since our node ids may not be
-    // consecutive integers, in order to get O(1) access to the
-    // representative for a node, we must store it in the tree node
-    // itself.
-    const_cast<tree<value_type> &>(t).set_repr(_level.end() - 1 - _level.begin());
-
-    std::for_each(t.children().begin(), t.children().end(),
-                  [this, val, level, &eulerit, &levelit](const tree<value_type> &c) {
-                    preprocess(c, level + 1, eulerit, levelit);
-                    *eulerit++ = val;
-                    *levelit++ = level;
-                  });
+    for(const auto& c: _get_children[node]){
+      preprocess(*c, depth + 1);
+      register_vertex_in_euler_tour(node, depth);
+    }
   }
 
   void preprocess() {
-    preprocess(_input, 0, std::back_inserter(_euler), std::back_inserter(_level));
-    _rmq.reset(new rmq_impl(_level.begin(), _level.end()));
+    preprocess(_root_node, 0);
+    _rmq.reset(new rmq_impl(_depth.begin(), _depth.end()));
   }
 
 public:
-  lca(const tree<value_type> &t)
-    : _input(t)
+  lca(const node_type &t,
+      const node_id_type& max_id = 0,
+      const node_to_id_type& node_to_id = node_to_id_type(),
+      const node_to_children_type& node_to_children = node_to_children_type() )
+    : _root_node(t),
+      _node_to_id(node_to_id),
+      _get_children(node_to_children)
   {
+    _node_id_to_euler_index.reserve(max_id);
     preprocess();
   }
 
-  value_type query(const tree<value_type> &u, const tree<value_type> &v) const {
+  const node_type* query(const node_type &u, const node_type &v) const {
     // After preprocessing, all nodes in the tree should have their repr()
     // initialized.  We use that to find the indexes on which to run the
     // RMQ algorithm.
-    auto ui = u.repr();
-    auto vi = v.repr();
+    auto uei = _node_id_to_euler_index.at(_node_to_id[u]);
+    auto vei = _node_id_to_euler_index.at(_node_to_id[v]);
 
     // The RMQ interface uses an exclusive upper bound so we need to go
     // one past that to include the node represented by the upper bound
     // here.
-    auto idx = (ui <= vi
-                ? _rmq->query(_level.begin() + ui, _level.begin() + vi + 1)
-                : _rmq->query(_level.begin() + vi, _level.begin() + ui + 1));
+    if(vei < uei) std::swap(uei, vei);
+    auto idx = _rmq->query(_depth.begin() + uei, _depth.begin() + vei + 1);
 
     // Future work: return the node itself, rather than the node's id?
-    return _euler[idx];
+    return _euler_tour[idx];
   }
 };
 

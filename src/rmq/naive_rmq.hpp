@@ -2,6 +2,8 @@
  * Implements the naive <O(n^2), O(1)> RMQ solution.
  */
 
+#pragma once
+
 #include <algorithm>
 #include <iterator>
 #include <vector>
@@ -71,3 +73,6 @@ public:
     return _arr[v-u-1][u-begin()];
   }
 };
+
+
+

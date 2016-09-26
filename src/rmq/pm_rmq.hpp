@@ -2,6 +2,9 @@
  * Implements the <O(n), O(1)> ±1 RMQ solution.
  */
 
+#pragma once
+
+
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -225,3 +228,5 @@ public:
     }
   }
 };
+
+

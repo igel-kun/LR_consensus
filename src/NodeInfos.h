@@ -49,7 +49,7 @@ class NodeInfos  {
 			stId = id;
 		}
 		
-		int getStId(){
+		int getStId() const {
 			return stId ;
 		}
 		
