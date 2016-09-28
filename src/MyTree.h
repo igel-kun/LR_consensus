@@ -20,147 +20,139 @@ typedef NodeTemplate<NodeInfos> MyNode;
 class MyTree: public TreeTemplate<MyNode> {
 public:
 
-	MyNode ** correspondanceId ;
-	int dimCorrId;
-	//vector< int > centroidPaths ;
+	MyNode** correspondanceId;
+	unsigned dimCorrId;
+	//vector< unsigned > centroidPaths ;
 
  	MyTree(): TreeTemplate<MyNode>(){}
+ 	MyTree(MyNode& root): TreeTemplate<MyNode>(& root), correspondanceId(NULL){}
+ 	MyTree(MyNode& root, unsigned dim): TreeTemplate<MyNode>(& root), correspondanceId(new MyNode*[dim]){}
 
- 	MyTree(MyNode & root): TreeTemplate<MyNode>(& root), correspondanceId(NULL){}
- 	MyTree(MyNode & root,int dim): TreeTemplate<MyNode>(& root), correspondanceId(new MyNode*[dim]){} 
- 	
  	virtual ~MyTree(){
     if(lca_oracle) delete lca_oracle;
  		if(correspondanceId) delete [] (correspondanceId);
- 	} 
- 	
- 	 void setCorrispondanceLenghtId(int dim){
+ 	}
+
+  void setCorrispondanceLenghtId(unsigned dim){
  		correspondanceId= new MyNode*[dim];
- 		for(int i = 0; i < dim; i++)
+ 		for(unsigned i = 0; i < dim; i++)
  			correspondanceId[i]= NULL;
  		dimCorrId=dim;
  	}
- 		
- 	 void resetCorrispondanceLenghtId(int dim){
- 		for(int i = 0; i < dim; i++)
+
+  void resetCorrispondanceLenghtId(unsigned dim){
+ 		for(unsigned i = 0; i < dim; i++)
  			correspondanceId[i]= NULL;
  	}
 
-	 void setNodeWithStId(MyNode * node, int stId){
+	void setNodeWithStId(MyNode * node, unsigned stId){
 	 	correspondanceId[stId] = node;
-	 }
-	 
-	 	 
-	 MyNode * getNodeWithStId(int stId){
-	 	return correspondanceId[stId];
-	 }	
+	}
 
-	 void setDepth(MyNode * node){
+	MyNode * getNodeWithStId(unsigned stId){
+	 	return correspondanceId[stId];
+	}
+
+	void setDepth(MyNode * node){
 	 	if(TreeTemplateTools::isRoot(* node))
 	 		node->getInfos().setDepth(0); //root has depth 0
 	 	else
 	 		node->getInfos().setDepth(node->getFather()->getInfos().getDepth() +1); //otherwise depth of father +1
-		
-    for(unsigned int i = 0; i < node->getNumberOfSons(); i++)
+
+    for(unsigned i = 0; i < node->getNumberOfSons(); i++)
 			setDepth(node->getSon(i)); // recursive calls for sons
-	 }	 	 
-	 
-	 void setNumberOfDescendents(MyNode * node){
-     for(unsigned int i = 0; i < node->getNumberOfSons(); i++)
-       setNumberOfDescendents(node->getSon(i)); // recursive calls for sons
+	}
 
-     if(!node->isLeaf()){
-       unsigned tempNumberOfDescendent=0;
-       for(unsigned i = 0; i < node->getNumberOfSons(); i++)
-         tempNumberOfDescendent += (node->getSon(i)->getInfos().getNumberOfDescendents() +1); //adding up all the descendants of sons + sons 
-       node->getInfos().setNumberOfDescendents(tempNumberOfDescendent);	
-     } else node->getInfos().setNumberOfDescendents(0); //leaves have no descendants 
-	 }
-	 
-	 	 
-	 void setDepthAndNumberOfDescendents(){
-	    setDepth(getRootNode());
-	    setNumberOfDescendents(getRootNode());
-	 }
-	 
+	void setNumberOfDescendents(MyNode * node){
+    for(unsigned i = 0; i < node->getNumberOfSons(); i++)
+      setNumberOfDescendents(node->getSon(i)); // recursive calls for sons
 
-	 //construct the centroid decomposition of a tree
-	 
-	 void getCentroidDecompostion(MyNode * node, int maxPartition){
-     node->getInfos().setCentroidPathNumber(maxPartition);
-     int maxDesc=0;
-     unsigned chosenChild=0;
-     for(unsigned i = 0; i < node->getNumberOfSons(); i++){
-       int numbDesc = node->getSon(i)->getInfos().getNumberOfDescendents() ;
-       if(numbDesc>maxDesc)
-         chosenChild=i;	     	
-     }
-     for(unsigned i = 0; i < node->getNumberOfSons(); i++){
-       if(i== chosenChild){
-         //the child with the higher number of sons stay in the same centroid path than the father (ties broken arbitrarly)
-         getCentroidDecompostion(node->getSon(i),maxPartition);
-       } else 
-         getCentroidDecompostion(node->getSon(i),++maxPartition); // the other start new centroid paths
-     }
-   }
-	 
-	 	 
-	 void getCentroidDecompostion(){
-	 	getCentroidDecompostion(getRootNode(),0);  
-	 }
-	 
-	 
-	 void setPreOrder(MyNode * node, int & maxPreorder){	    
-	 	for(unsigned int i = 0; i < node->getNumberOfSons(); i++){
-			setPreOrder(node->getSon(i),maxPreorder); 
-		}	
+    if(!node->isLeaf()){
+      unsigned tempNumberOfDescendent=0;
+      for(unsigned i = 0; i < node->getNumberOfSons(); i++)
+        tempNumberOfDescendent += (node->getSon(i)->getInfos().getNumberOfDescendents() +1); //adding up all the descendants of sons + sons
+      node->getInfos().setNumberOfDescendents(tempNumberOfDescendent);
+    } else node->getInfos().setNumberOfDescendents(0); //leaves have no descendants
+  }
+
+
+	void setDepthAndNumberOfDescendents(){
+    setDepth(getRootNode());
+    setNumberOfDescendents(getRootNode());
+  }
+
+  //construct the centroid decomposition of a tree
+	void getCentroidDecompostion(MyNode * node, unsigned maxPartition){
+    node->getInfos().setCentroidPathNumber(maxPartition);
+    unsigned maxDesc=0;
+    unsigned chosenChild=0;
+    for(unsigned i = 0; i < node->getNumberOfSons(); i++){
+      unsigned numbDesc = node->getSon(i)->getInfos().getNumberOfDescendents();
+      if(numbDesc>maxDesc)
+        chosenChild=i;
+    }
+    for(unsigned i = 0; i < node->getNumberOfSons(); i++){
+      if(i== chosenChild){
+        //the child with the higher number of sons stay in the same centroid path than the father (ties broken arbitrarly)
+        getCentroidDecompostion(node->getSon(i),maxPartition);
+      } else
+        getCentroidDecompostion(node->getSon(i),++maxPartition); // the other start new centroid paths
+    }
+  }
+
+  void getCentroidDecompostion(){
+    getCentroidDecompostion(getRootNode(),0);
+  }
+
+	void setPreOrder(MyNode * node, unsigned & maxPreorder){
+    for(unsigned i = 0; i < node->getNumberOfSons(); i++){
+      setPreOrder(node->getSon(i),maxPreorder);
+		}
 		if(node->isLeaf()){
-	 		node->getInfos().setPreOrder(++maxPreorder); 
+	 		node->getInfos().setPreOrder(++maxPreorder);
 	 	}
-	 }
-	 
-	 void setPreOrder(){
-	 	int zero =0;
-	 	setPreOrder(this->getRootNode(),zero);  
-	 }
-	 
-	 
+  }
+
+  void setPreOrder(){
+    unsigned zero =0;
+	 	setPreOrder(this->getRootNode(),zero);
+  }
+
 	//not used for now
- 
 	 vector<string> getNames(MyNode & node){
 	   	vector<string> stId;
 	  	if(node.isLeaf()){
 	     	stId.push_back(node.getName());
 	  	 }
-	  	 for(unsigned int i = 0; i < node.getNumberOfSons(); i++){
+	  	 for(unsigned i = 0; i < node.getNumberOfSons(); i++){
 	     	vector<string> subStId = getNames(* node.getSon(i));
-	    	for(unsigned int j = 0; j < subStId.size(); j++) stId.push_back(subStId[j]);
+	    	for(unsigned j = 0; j < subStId.size(); j++) stId.push_back(subStId[j]);
 	   	}
-	   	return stId;   
+	   	return stId;
 	 }
-	
-	vector<int> getLeavesStId(MyNode & node){
-	   	vector<int> stId;
+
+	vector<unsigned> getLeavesStId(MyNode & node){
+	   	vector<unsigned> stId;
 	  	if(node.isLeaf()){
 	     	stId.push_back(node.getInfos().getStId());
 	  	 }
-	  	 for(unsigned int i = 0; i < node.getNumberOfSons(); i++){
-	     	vector<int> subStId = getLeavesStId(* node.getSon(i));
-	    	for(unsigned int j = 0; j < subStId.size(); j++) stId.push_back(subStId[j]);
+	  	 for(unsigned i = 0; i < node.getNumberOfSons(); i++){
+	     	vector<unsigned> subStId = getLeavesStId(* node.getSon(i));
+	    	for(unsigned j = 0; j < subStId.size(); j++) stId.push_back(subStId[j]);
 	   	}
-	   	return stId;   
+	   	return stId;
 	 }
-	 
+
 
 
   //======================== LCA code =========================
 protected:
   //! access node stId's
   struct access_stId {
-    int operator[](const MyNode& u) const { return u.getInfos().getStId(); }
+    unsigned operator[](const MyNode& u) const { return u.getInfos().getStId(); }
   };
   struct access_Id {
-    int operator[](const MyNode& u) const { return u.getId(); }
+    unsigned operator[](const MyNode& u) const { return u.getId(); }
   };
   // access node children
   struct access_children {
@@ -176,7 +168,7 @@ protected:
     }
   };
 
-  typedef lca<MyNode, int, const access_Id, const access_children> LCA_Oracle;
+  typedef lca<MyNode, unsigned, const access_Id, const access_children> LCA_Oracle;
 
   LCA_Oracle* lca_oracle = NULL;
 
@@ -194,8 +186,8 @@ public:
   {
     return lca_oracle->query(*u, *v);
   }
-   
-};	
+
+};
 
 
 #endif /*MYTREE_H_*/
