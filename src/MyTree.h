@@ -4,12 +4,17 @@
 #define MYTREE_H_
 
 
-#include "NodeInfos.h"
 #include "rmq/lca.hpp"
+#include <Bpp/Phyl/Io/IoTree.h>
+#include <Bpp/Phyl/Io/Newick.h>
+#include <Bpp/Phyl/Tree.h>
+#include <Bpp/Phyl/TreeExceptions.h>
+#include <Bpp/Phyl/TreeTemplateTools.h>
+
+#include "NodeInfos.h"
 
 using namespace bpp;
 
-#include <Bpp/Phyl/TreeTemplateTools.h>
 typedef NodeTemplate<NodeInfos> MyNode;
 
 class MyTree: public TreeTemplate<MyNode> {
@@ -84,13 +89,13 @@ public:
 	 void getCentroidDecompostion(MyNode * node, int maxPartition){
      node->getInfos().setCentroidPathNumber(maxPartition);
      int maxDesc=0;
-     int chosenChild=0;
-     for(unsigned int i = 0; i < node->getNumberOfSons(); i++){
+     unsigned chosenChild=0;
+     for(unsigned i = 0; i < node->getNumberOfSons(); i++){
        int numbDesc = node->getSon(i)->getInfos().getNumberOfDescendents() ;
        if(numbDesc>maxDesc)
          chosenChild=i;	     	
      }
-     for(unsigned int i = 0; i < node->getNumberOfSons(); i++){
+     for(unsigned i = 0; i < node->getNumberOfSons(); i++){
        if(i== chosenChild){
          //the child with the higher number of sons stay in the same centroid path than the father (ties broken arbitrarly)
          getCentroidDecompostion(node->getSon(i),maxPartition);
@@ -154,6 +159,9 @@ protected:
   struct access_stId {
     int operator[](const MyNode& u) const { return u.getInfos().getStId(); }
   };
+  struct access_Id {
+    int operator[](const MyNode& u) const { return u.getId(); }
+  };
   // access node children
   struct access_children {
     // damn you Bio++ for not giving me access to the ::sons_ vector!!!
@@ -168,14 +176,14 @@ protected:
     }
   };
 
-  typedef lca<MyNode, int, const access_stId, const access_children> LCA_Oracle;
+  typedef lca<MyNode, int, const access_Id, const access_children> LCA_Oracle;
 
   LCA_Oracle* lca_oracle = NULL;
 
 public:
   void lca_preprocess()
   {
-    lca_oracle = new LCA_Oracle(*getRootNode(), dimCorrId, access_stId(), access_children());
+    lca_oracle = new LCA_Oracle(*getRootNode(), dimCorrId, access_Id(), access_children());
   }
 
   const MyNode* getLCA(const MyNode& u, const MyNode& v) const

@@ -14,6 +14,7 @@
 #include <Bpp/Phyl/TreeExceptions.h>
 
 using namespace std;
+using namespace bpp;
 
 class NodeInfos  {
 	 typedef NodeTemplate<NodeInfos> MyNode;
