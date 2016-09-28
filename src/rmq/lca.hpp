@@ -27,7 +27,7 @@ struct NodeToChildren
 
 template<
   typename node_type,
-  typename node_id_type = unsigned,
+  typename node_id_type = unsigned, // NOTE: this has to be castable to unsigned as we will use it as array index!
   class node_to_id_type = const NodeToIdx<node_type, node_id_type>,
   class node_to_children_type = const NodeToChildren<node_type>,
   typename rmq_impl = pm_rmq<std::vector<ssize_t>::const_iterator>
@@ -50,7 +50,7 @@ class lca
   void register_vertex_in_euler_tour(const node_type& node,
                                      const unsigned depth)
   {
-    auto node_id = _node_to_id[node];
+    const unsigned& node_id = _node_to_id[node];
     if(node_id >= _node_id_to_euler_index.size())
       _node_id_to_euler_index.resize(node_id + 1);
     _node_id_to_euler_index[node_id] = _euler_tour.size();
