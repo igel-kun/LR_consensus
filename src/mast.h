@@ -3,85 +3,12 @@
 #ifndef MAST_H_
 #define MAST_H_
 
-
+#include <cassert>
 #include "MyTree.h"
 
 using namespace bpp;
 
 
-
-MyTree * restrictTree(MyTree * tree, vector<unsigned> idsLeaves){
-	vector<unsigned> ids; //used later to find the edge set
-
-	//defining the node set
-	for(unsigned y=0;y< idsLeaves.size()-1;y++){
-		ids.push_back(idsLeaves[y]);
-		unsigned idNode = tree->getLCA(tree->getNodeWithStId(idsLeaves[y]),tree->getNodeWithStId(idsLeaves[y+1]))->getInfos().getStId(); //unsignedernal nodes
-		ids.push_back(idNode);
-	}
-	ids.push_back(idsLeaves[idsLeaves.size()-1]);
-
-	MyTree * restrictedTree;
-	restrictedTree->setCorrispondanceLenghtId(ids.size());
-
-	//defining the edge set
-
-	for(unsigned y=0;y< ids.size();y++){
-
-		MyNode * newNode =new MyNode();
-		newNode->getInfos().setStId(ids[y]);
-		restrictedTree->setNodeWithStId(newNode,ids[y]);
-		if(tree->getNodeWithStId(ids[y])->isLeaf())
-			newNode->setName(tree->getNodeWithStId(ids[y])->getName());
-
-
-		int vright = -1;
-		int vleft = -1;
-		unsigned depthNode = tree->getNodeWithStId(ids[y])->getInfos().getDepth();
-		unsigned depthNodeR;
-		unsigned depthNodeL;
-
-		//the next two loops are not optimal
-		for(unsigned l=y-1;l>=0 ;l--){
-			depthNodeL = tree->getNodeWithStId(ids[l])->getInfos().getDepth();
-			if(depthNodeL < depthNode){
-				vleft=ids[l]; //first node on the left of idsForEdges[y] with lower depth
-				break;
-			}
-
-		}
-		for(unsigned r=y+1;r< ids.size();r++){
-			depthNodeR = tree->getNodeWithStId(ids[r])->getInfos().getDepth();
-			if(depthNodeR < depthNode){
-				vright=ids[r]; //first node on the right of idsForEdges[y] with lower depth
-				break;
-			}
-		}
-
-		if(vleft==-1 && vright!=-1){
-			restrictedTree->getNodeWithStId(vright)->addSon(newNode);
-		}
-		else if(vleft!=-1 && vright==-1){
-			restrictedTree->getNodeWithStId(vleft)->addSon(newNode);
-
-		}
-		else if(vleft==-1 && vright==-1){
-			restrictedTree->setRootNode(newNode);
-			//restrictedTree->resetNodesId();
-		}
-
-		else{
-			if(depthNodeR< depthNodeL)
-				restrictedTree->getNodeWithStId(vleft)->addSon(newNode);
-			else
-				restrictedTree->getNodeWithStId(vright)->addSon(newNode);
-		}
-	}
-
-	restrictedTree->resetNodesId();
-	return restrictedTree;
-
-}
 
 void mast(vector<MyTree *> trees, map<string,unsigned> association)
 {
@@ -91,7 +18,7 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
 	for(unsigned y=0;y< trees.size();y++){
 		vector <MyNode * >  nodes= trees[y]->getNodes();
 		  //create a vector of pounsigneders from stIds to nodes
-		trees[y]->setCorrispondanceLenghtId(nodes.size());
+		trees[y]->setCorrespondanceLenghtId(nodes.size());
 		for(unsigned l=0;l< nodes.size();l++){
 		// twin leaves will have the same stId in the two trees, associated to the name via the mapping association
 		// the unsignedernal nodes will have stIds starting from maxId up
@@ -157,7 +84,7 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
 
 		vector<MyTree *> recursiveCallTrees;
 		recursiveCallTrees.push_back(new MyTree(* rootsOfMiSubtrees[y])); // subtrees Mi in T1
-		recursiveCallTrees.push_back(restrictTree(trees[1], corrMiT2[y]));
+		recursiveCallTrees.push_back(trees[1]->induced_subtree(corrMiT2[y]));
 		mast(recursiveCallTrees, association);
 	}
 	delete [] corrMiT2;

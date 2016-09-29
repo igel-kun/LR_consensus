@@ -44,7 +44,7 @@ class NodeInfos  {
 			centroidPathNumber = id;
 		}
 		
-		int getCentroidPathNumber(){
+		int getCentroidPathNumber() const{
 			return centroidPathNumber ;
 		}
 	
@@ -52,7 +52,7 @@ class NodeInfos  {
 			preorder = id;
 		}
 		
-		int getPreOrder(){
+		int getPreOrder() const{
 			return preorder ;
 		}
 		
@@ -70,7 +70,7 @@ class NodeInfos  {
 			depth = id;
 		}
 		
-		int getDepth(){
+		int getDepth() const{
 			return depth ;
 		}
 		
@@ -78,7 +78,7 @@ class NodeInfos  {
 			numberOfDescendents = id;
 		}
 		
-		int getNumberOfDescendents(){
+		int getNumberOfDescendents() const{
 			return numberOfDescendents;
 		}
 	
@@ -149,11 +149,11 @@ class NodeInfos  {
 			return cladeNodeAboveDuplications;
 		} 
 		
-		vector<int> getClade(){
+		vector<int> getClade() const{
 			return clade;
 		};
 		
-		vector<string> getCladeNames(){
+		vector<string> getCladeNames() const{
 			return cladeNames;
 		};
 	
@@ -180,14 +180,14 @@ class NodeInfos  {
 		}
 					
 		void setVisited(bool a) {visited = a;};
-		bool getVisited(){return visited;};
+		bool getVisited() const{return visited;};
 		
 		void setSquare(bool a) { square = a;};
-		bool getSquare(){return square;};
+		bool getSquare() const{return square;};
 		
 		void setCounter(int a) {counter= a;};
 		void addCounter() {counter ++;};
-		int getCounter(){return counter;};	
+		int getCounter() const{return counter;};	
 		
 		void copyInCladeNodeLinear(MyNode *leaves){
 			//(cladeNode).clear();
