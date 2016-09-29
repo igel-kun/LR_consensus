@@ -51,10 +51,10 @@ struct _Children{
   const size_t _size;
 
   _Children(NodeType& _node, const size_t _max): node(_node), _size(_max)   {}
-  ChildConstIterator cbegin(){ return ChildConstIterator(node); }
-  ChildIterator begin(){ return ChildIterator(node); }
-  ChildConstIterator cend(){ return ChildConstIterator(node, _size); }
-  ChildIterator end(){ return ChildIterator(node, _size); }
+  ChildConstIterator cbegin() const { return ChildConstIterator(node); }
+  ChildIterator begin() const { return ChildIterator(node); }
+  ChildConstIterator cend() const { return ChildConstIterator(node, _size); }
+  ChildIterator end() const { return ChildIterator(node, _size); }
   size_t size() const {return _size; }
 };
 using Children = _Children<MyNode>;
@@ -316,18 +316,21 @@ public:
 
   }
 
+  /*
   // ====================== output ======================
-  void pretty_print(std::ostream& os = std::cout, const MyNode& node) const
+  void pretty_print(const MyNode& node, std::ostream& os = std::cout) const
   {
     const unsigned num_desc = node.getInfos().getNumberOfDescendents();
     char to_print = ' ';
-    for(auto child_it = get_children(node).cbegin){
-      const unsigned num_child_desc = child.getInfos().getNumberOfDescendants();
+    const auto children = get_children(node);
+    for(ChildConstIterator child_it = children.cbegin(); child_it != children.cend(); ++child_it){
+      const unsigned num_child_desc = child_it->getInfos().getNumberOfDescendants();
       for(unsigned i = 0; i < num_child_desc; ++i) os << to_print;
 
-      to_print = 
+//      to_print = 
     }
   }
+  */
 
   void pretty_print(std::ostream& os = std::cout) const
   {
