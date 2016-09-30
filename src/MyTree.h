@@ -116,6 +116,21 @@ public:
 	 	correspondanceId[stId] = node;
 	}
 
+  void setup_StIds_subtree(MyNode* subtree_root, unsigned& offset){
+    subtree_root->getInfos().setStId(offset);
+    correspondanceId[offset] = subtree_root;
+    std::cout << "setting StId "<<offset<<" to node @"<<subtree_root<<std::endl;
+    for(auto& child: get_children(*subtree_root))
+      setup_StIds_subtree(&child, ++offset);
+  }
+  // give stIds to the nodes of the tree starting with stId offset
+  // if avoid_leaves is set, then do not give stIds to leaves
+  void setup_StIds() {
+    correspondanceId.resize(getNumberOfNodes());
+    unsigned zero = 0;
+    setup_StIds_subtree(getRootNode(), zero);
+	}
+
 	MyNode* getNodeWithStId(unsigned stId) const{
 	 	return correspondanceId[stId];
 	}
@@ -252,62 +267,78 @@ public:
 
   //======================= computing subtree induced by leaves ===============
   // restricts the given tree to the given leaves (given by StId)
-  // NOTE: this assumes that idsLeaves is ordered with respect to a pre-order
-#warning TODO: reorder the given leaves into a preorder at the beginning
+  // NOTE: assumptions:
+  //  1. idsLeaves is ordered with respect to a pre-order
+  //  2. all depths and StIds have been set up
   MyTree* induced_subtree(const vector<unsigned>& idsLeaves) const {
     assert(!idsLeaves.empty());
-    vector<unsigned> ids; //holds the vertex IDs of all vertices in the induced subtree
+    
 
-    // get all LCA in tree above the leaves in idsLeaves
+    // Step 1: get the IDs of all nodes in the restricted tree
+    // get all LCA in tree above the leaves in idsLeaves and construct the new nodes
     // NOTE: by the assumed ordering of idsLeaves, no LCA is missed
+    vector<unsigned> ids; //holds the vertex IDs of all vertices in the induced subtree
+    ids.reserve(2 * idsLeaves.size());
     for(unsigned y = 0; y < idsLeaves.size() - 1; y++){
-      const MyNode* yNode(getNodeWithStId(idsLeaves[y]));
-      const MyNode* nextNode(getNodeWithStId(idsLeaves[y + 1]));
-      ids.push_back(idsLeaves[y]);
-      unsigned idNode = getLCA(yNode, nextNode)->getInfos().getStId(); //unsignedernal nodes
-      ids.push_back(idNode);
+      const unsigned y_id = idsLeaves[y];
+      const MyNode* const y_node(getNodeWithStId(y_id));
+      ids.push_back(y_id);
+
+      const MyNode* const nextNode(getNodeWithStId(idsLeaves[y + 1]));
+      unsigned LCA_id = getLCA(y_node, nextNode)->getInfos().getStId(); //internal nodes
+      ids.push_back(LCA_id);
     }
     ids.push_back(*idsLeaves.rbegin());
 
+
+    // Step 2: construct the restricted tree and reserve space for the correspondance
     MyTree* restrictedTree = new MyTree();
     // reserve enough space in the corresponding-ID vector for all ids
     restrictedTree->setCorrespondanceLenghtId(*std::max_element(ids.begin(), ids.end()));
 
-    // use 2 instances of nearest_lower<> to find the vertex directly above y for each y with ID in ids
-    nearest_lower<vector<unsigned>, DepthCompare<false>, DIR_LEFT > nearest_left_index_above(ids, DepthCompare<false>(*this));
-    nearest_lower<vector<unsigned>, DepthCompare<false>, DIR_RIGHT> nearest_right_index_above(ids, DepthCompare<false>(*this));
 
-    //defining the edge set
-    for(unsigned y = 0; y < ids.size(); y++){
-      // abbreviations:
-      const unsigned y_id = ids[y];
-      MyNode& y_node = *getNodeWithStId(y_id);
-
-      // step1: construct new node to insert into the restrcited tree
+    // Step 3: create all vertices according to the ids and set their correspondance in restrcitedTree
+    vector<MyNode*> nodes;
+    nodes.reserve(2 * idsLeaves.size());
+    for(unsigned i = 0; i < ids.size(); ++i){
+      const unsigned y_id = ids[i];
+      const MyNode* const y_node(getNodeWithStId(y_id));
       MyNode* newNode = new MyNode();
       newNode->getInfos().setStId(y_id);
       restrictedTree->setNodeWithStId(newNode, y_id);
-      if(y_node.hasName()) newNode->setName(y_node.getName());
+      if(y_node->hasName())
+        newNode->setName(y_node->getName());
+      nodes.push_back(newNode);
+    }
 
-      // step2: find node above y_node using 2 instances of nearest_lower
+    
+    // Step 4: defining the edge set
+    // use 2 instances of nearest_lower<> to find the vertex directly above y for each y with ID in ids
+    nearest_lower<vector<unsigned>, DIR_LEFT,  DepthCompare<false> > nearest_left_index_above(ids, DepthCompare<false>(*this));
+    nearest_lower<vector<unsigned>, DIR_RIGHT, DepthCompare<false> > nearest_right_index_above(ids, DepthCompare<false>(*this));
+    for(unsigned y = 0; y < nodes.size(); y++){
+      // find node above y_node using 2 instances of nearest_lower
       const ssize_t left_id_index = nearest_left_index_above.query(y);
-      MyNode* v_left = (left_id_index == -1) ? NULL : restrictedTree->getNodeWithStId(ids[left_id_index]);
+      MyNode* v_left = (left_id_index == -1) ? NULL : nodes[left_id_index];
       
       const ssize_t right_id_index = nearest_right_index_above.query(y);
-      MyNode* v_right = (right_id_index == -1) ? NULL : restrictedTree->getNodeWithStId(ids[right_id_index]);
+      MyNode* v_right = (right_id_index == -1) ? NULL : nodes[right_id_index];
 
       if(!v_left && v_right){
-        v_right->addSon(newNode);
+        v_right->addSon(nodes[y]);
       } else if(v_left && !v_right){
-        v_left->addSon(newNode);
+        v_left->addSon(nodes[y]);
       } else if(!v_left && !v_right){
-        restrictedTree->setRootNode(newNode);
+        restrictedTree->setRootNode(nodes[y]);
         //restrictedTree->resetNodesId();
       } else{
-        if(v_right->getInfos().getDepth() < v_left->getInfos().getDepth())
-          v_left->addSon(newNode);
-        else
-          v_right->addSon(newNode);
+        const unsigned left_depth = getNodeWithStId(ids[left_id_index])->getInfos().getDepth();
+        const unsigned right_depth = getNodeWithStId(ids[right_id_index])->getInfos().getDepth();
+        if(right_depth < left_depth){
+          v_left->addSon(nodes[y]);
+        } else{
+          v_right->addSon(nodes[y]);
+        }
       }
     }
 
@@ -344,7 +375,7 @@ bool DepthCompare<invert>::operator()(unsigned u_id, unsigned v_id) const
 {
   const MyNode* const u = tree.getNodeWithStId(u_id);
   const MyNode* const v = tree.getNodeWithStId(v_id);
-  return (u->getInfos().getDepth() < v->getInfos().getDepth()) == invert; 
+  return (u->getInfos().getDepth() < v->getInfos().getDepth()) != invert;
 }
 
 
