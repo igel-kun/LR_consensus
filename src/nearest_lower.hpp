@@ -9,7 +9,7 @@ enum Direction : char {DIR_LEFT = 1, DIR_RIGHT = -1};
 // preprocessing a vector such as to allow querying the nearest element on the left (right) index with lower (higher) score
 // per default: find the nearest element on the left with less score than the query element
 // NOTE: Container should support random access by operator[](unsigned)
-template<class Container, class Compare = std::less<typename Container::value_type>, Direction dir = DIR_LEFT>
+template<class Container, Direction dir = DIR_LEFT, class Compare = std::less<typename Container::value_type> >
 class nearest_lower{
   std::vector<ssize_t> target_index; // vector storing the actual information
 
@@ -28,7 +28,7 @@ class nearest_lower{
       while(!prev_indices.empty() && cmp(current, container[prev_indices.top()]))
         prev_indices.pop();
       // the next item on the stack is the nearest with higher/lower score
-      target_index[i] = prev_indices.empty() ? -1 : prev_indices.top();
+      target_index[i] = prev_indices.empty() ? (ssize_t)(-1) : (ssize_t)prev_indices.top();
       // add us to the stack
       prev_indices.push(i);
     }
