@@ -14,8 +14,11 @@
 #include <Bpp/Phyl/TreeTemplateTools.h>
 
 #include "NodeInfos.h"
-
+#include "MatrixTriplets.h"
+#include <iterator>
 using namespace bpp;
+
+using namespace std;
 
 typedef NodeTemplate<NodeInfos> MyNode;
 
@@ -79,6 +82,8 @@ class MyTree: public TreeTemplate<MyNode> {
 public:
 
 	vector<MyNode*> correspondanceId;
+	vector<MyNode*> leavesPreordered;
+
 	//vector< unsigned > centroidPaths ;
 
  	MyTree(): TreeTemplate<MyNode>(){}
@@ -104,6 +109,7 @@ public:
     return Children(node, node.getNumberOfSons());
   }
 
+  
   void setCorrespondanceLenghtId(unsigned dim){
  		correspondanceId.resize(dim);
  	}
@@ -366,6 +372,69 @@ public:
   void pretty_print(std::ostream& os = std::cout) const
   {
   }
+  
+  //clades stuff
+  
+
+  void setClades(MyNode & currentNode){
+  	if(currentNode.isLeaf()){
+  		pair <int,int> ids(leavesPreordered.size(),leavesPreordered.size()); // preprocess the clade of a leaf for later
+  	  	currentNode.getInfos().setClade(ids);
+  		leavesPreordered.push_back(& currentNode);
+  	}	
+  	else{
+  		int startClade = leavesPreordered.size();
+		for(auto& child: get_children(currentNode))
+      		setClades(child); // recursive calls for sons
+       int endClade = leavesPreordered.size()-1;
+	   pair <int,int> ids(startClade,endClade);
+       currentNode.getInfos().setClade(ids);
+    }  		
+  }
+  
+  void setClades(){
+  	setClades(* getRootNode());
+  }
+  
+  
+  
+  //triplets stuff
+  
+
+	
+  void setTriplets(MatrixTriplets & Triplets, MyNode & currentNode){   
+		
+		for(auto& child: get_children(currentNode)){
+      		setTriplets(Triplets, child); // recursive calls for sons
+		}
+		
+		pair<int,int> cladeCN= currentNode.getInfos().getClade();
+
+		for(auto childitA = get_children(currentNode).begin();childitA !=get_children(currentNode).end();childitA++){
+			pair<int,int> cladeA= (* childitA).getInfos().getClade();
+			for(auto childitB = next(childitA);childitB !=get_children(currentNode).end();childitB++){
+				pair<int,int> cladeB= (* childitB).getInfos().getClade();
+				
+				for(unsigned int i = cladeA.first;i <= cladeA.second; i++){
+					for(unsigned int j = cladeB.first;j < cladeB.second; j++){
+						for(unsigned int z = 0;z < leavesPreordered.size(); z++){
+							if(z==cladeCN.first)
+								z=cladeCN.second;
+							else
+								Triplets.add(* leavesPreordered[i],* leavesPreordered[j], * leavesPreordered[z]);
+						}	
+					}
+				}
+			}
+		}
+	}
+	
+	MatrixTriplets * setTriplets(int dim ){   
+		MatrixTriplets * Triplets =new MatrixTriplets();
+		Triplets->setDim(dim);
+		setTriplets(* Triplets, * getRootNode());
+		return Triplets;
+ }	
 
 };
 
