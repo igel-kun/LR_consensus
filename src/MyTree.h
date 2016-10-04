@@ -39,9 +39,9 @@ struct _ChildIterator{
   //! increment operator
   _ChildIterator& operator++() { ++index; return *this; }
   //! post-increment
-  _ChildIterator& operator++(int) { unsigned i = index; ++(*this); return _ChildIterator(i); }
+  _ChildIterator operator++(int) { unsigned i = index; ++(*this); return _ChildIterator(node, i); }
   //! addition
-  _ChildIterator& operator+(const int& j) { return _ChildIterator(index + j); }
+  _ChildIterator operator+(const int& j) const { return _ChildIterator(node, index + j); }
   //! dereferece
   NodeType& operator*() { return *node[index]; }
   //! comparison
@@ -414,7 +414,7 @@ public:
 
 		for(auto childitA = get_children(currentNode).begin();childitA !=get_children(currentNode).end();childitA++){
 			pair<int,int> cladeA= (* childitA).getInfos().getClade();
-			for(auto childitB = next(childitA);childitB !=get_children(currentNode).end();childitB++){
+			for(auto childitB = childitA + 1; childitB !=get_children(currentNode).end();childitB++){
 				pair<int,int> cladeB= (* childitB).getInfos().getClade();
 				
 				for(unsigned int i = cladeA.first;i <= cladeA.second; i++){
