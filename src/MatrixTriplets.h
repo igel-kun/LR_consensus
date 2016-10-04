@@ -42,8 +42,16 @@ class MatrixTriplets
 	int getDim(){
 		return dim;
 	}
-	
-	bool getValue (int i,int j,int z){
+
+	unordered_set< int > & getSet (int i,int j){
+		if(i<=j){
+			return GroupOfTriplets[i][j];
+		}
+		else
+			return GroupOfTriplets[j][i];
+	}
+		
+	bool isTriplet (int i,int j,int z){
 		if(i<=j){
 			return GroupOfTriplets[i][j].find(z)!=GroupOfTriplets[i][j].end();
 		}

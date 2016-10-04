@@ -112,6 +112,10 @@ public:
   }
 
   
+    unsigned getCorrespondanceLenghtId(){
+ 		return correspondanceId.size();
+ 	}
+ 	
   void setCorrespondanceLenghtId(unsigned dim){
  		correspondanceId.resize(dim);
  	}
@@ -398,8 +402,7 @@ public:
   	setClades(* getRootNode());
   }
   
-  
-  
+
   //triplets stuff
   
 
@@ -431,12 +434,15 @@ public:
 		}
 	}
 	
-	MatrixTriplets * setTriplets(int dim ){   
+	MatrixTriplets * setTriplets(){   
 		MatrixTriplets * Triplets =new MatrixTriplets();
-		Triplets->setDim(dim);
+		Triplets->setDim(correspondanceId.size());
 		setTriplets(* Triplets, * getRootNode());
 		return Triplets;
  }	
+ bool isPreprocessed(){
+ 	return !leavesPreordered.empty();
+ }
 
 };
 

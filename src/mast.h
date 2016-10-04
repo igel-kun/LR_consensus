@@ -5,6 +5,7 @@
 
 #include <cassert>
 #include "MyTree.h"
+#include "MultiGraph.h"
 
 using namespace bpp;
 
@@ -49,6 +50,8 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
 	vector < MyNode * > leavesSecondTree = trees[1]->getLeaves();
 	unsigned corrMi[leavesSecondTree.size()];
 
+	#warning another preoder traversal, eliminate one!
+	
 	unsigned orderedIds[leavesSecondTree.size()] ; //leaf ids ordered in preorder in T2
 	for(unsigned y=0;y< leavesSecondTree.size();y++){
 		orderedIds[leavesSecondTree[y]->getInfos().getPreOrder()] = leavesSecondTree[y]->getInfos().getStId();
@@ -69,9 +72,11 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
 		 for(unsigned y=0;y< leavesNode.size();y++){
 			corrMi[leavesNode[y]->getInfos().getStId()]	=i ; //this leaf is in subtree Mi
 		 }
-	     i++;
+	     i++; //number of Mi
 
 	}
+	int up_id =currentNode->getInfos().getStId() ;  // the stid of up
+
 
 
 	vector<unsigned> * corrMiT2 = new vector<unsigned>[i-1];
@@ -87,6 +92,83 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
 		recursiveCallTrees.push_back(trees[1]->induced_subtree(corrMiT2[y]));
 		mast(recursiveCallTrees, association);
 	}
+	
+	//STEP 3
+	
+	//preprocess trees[1] to store, for each node y of trees[1], the root of the centroid paths to which y belongs
+	
+	deque < MyNode * > nodesToConsider;
+	unsigned corrNodesRootCentroidPaths[trees[1]->getCorrespondanceLenghtId()];
+	nodesToConsider.push_back(trees[1]->getRootNode());
+	unsigned rootId = trees[1]->getRootNode()->getInfos().getStId();
+	corrNodesRootCentroidPaths[rootId]=rootId;
+	unsigned numberCentroidPathsT2=1;
+	while(! nodesToConsider.empty()){
+		MyNode * currentNode =nodesToConsider.front();
+    	nodesToConsider.pop_front();
+		if(currentNode->hasFather()){
+			MyNode * father = currentNode->getFather();
+			int idFather= father->getInfos().getStId();
+			int idNode= currentNode->getInfos().getStId();
+		 	if(currentNode->getInfos().getCentroidPathNumber()==father->getInfos().getCentroidPathNumber())
+		 		corrNodesRootCentroidPaths[idNode]=corrNodesRootCentroidPaths[idFather]; //same root of centroid path as its father
+		 	else{
+		 		corrNodesRootCentroidPaths[idNode]=idNode; //the node is a root of a centroid path
+				numberCentroidPathsT2++;
+			}
+			
+		}
+		unsigned int numSons= currentNode->getNumberOfSons();
+		for(unsigned int j = 0;j < numSons; j++)
+			nodesToConsider.push_back(currentNode->getSon(j)); 
+	}
+	
+	//creating all the muligraphs we will need 
+	MultiGraph ** Gxs = new MultiGraph*[numberCentroidPathsT2];
+	for(unsigned int j = 0;j < numberCentroidPathsT2; j++)
+		Gxs[j]= new MultiGraph();
+		
+	
+	//create the Rxs set, with the nodes ordered in preorder 
+	nodesToConsider.push_back(trees[1]->getRootNode());
+	while(! nodesToConsider.empty()){
+		MyNode * currentNode =nodesToConsider.front();
+    	nodesToConsider.pop_front();
+    	pair< int, bool > v(currentNode->getInfos().getStId(), true);
+    	auto vertex = boost::add_vertex(v, * Gxs[currentNode->getInfos().getCentroidPathNumber()]->getGraph());
+    	Gxs[currentNode->getInfos().getCentroidPathNumber()]->addRxVertex(currentNode->getInfos().getStId());
+		unsigned int numSons= currentNode->getNumberOfSons();
+		for(unsigned int j = 0;j < numSons; j++)
+			nodesToConsider.push_back(currentNode->getSon(j)); 
+	}
+	
+	// adding vertices and edges involving up
+	
+	if(! trees[1]->isPreprocessed()){
+  		trees[1]->setClades();
+  }	
+  
+	MyNode * twin_up_in_T2 = trees[1]->getNodeWithStId(up_id);
+	for(unsigned int j = 0;j < numberCentroidPathsT2; j++){
+		MyNode * rootOfCP = trees[1]->getNodeWithStId(Gxs[j]->getRxVertices()[0]); //this is true because of the way RxVertices are added
+		int index_twin_up_in_T2_leafPreOrder = twin_up_in_T2->getInfos().getClade().first;
+		pair <int, int > clade_rootOfCP = rootOfCP->getInfos().getClade();
+		if (index_twin_up_in_T2_leafPreOrder >= clade_rootOfCP.first && index_twin_up_in_T2_leafPreOrder <=clade_rootOfCP.second){ // the twin of up in T2 is in L(T2x)
+			pair< int, bool > v(up_id, false);
+			auto vertex = boost::add_vertex(v, * Gxs[j]->getGraph());
+    		Gxs[j]->addRxVertex(vertex);
+    		MyNode * vq = trees[1]->getNodeWithStId(Gxs[j]->getRxVertices().back()); //this is true because of the way RxVertices are added
+			const MyNode *lca = trees[1]->getLCA(vq,twin_up_in_T2);
+			if(lca->getInfos().getCentroidPathNumber()==j){//the LCA is in Rx
+				pair< int, bool > vlca(lca->getInfos().getStId(), true);
+				boost::add_edge_by_label(v,vlca, EdgeMultiGraph{ 1, "white" }, * Gxs[j]->getGraph() );
+				boost::add_edge_by_label(v,vlca, EdgeMultiGraph{ 1, "red" }, * Gxs[j]->getGraph() );
+				boost::add_edge_by_label(v,vlca, EdgeMultiGraph{ 1, "green" }, * Gxs[j]->getGraph() );
+			}
+		}
+	}
+	
+	
 	delete [] corrMiT2;
 
  }
