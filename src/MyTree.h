@@ -37,6 +37,8 @@ struct _ChildIterator{
   _ChildIterator& operator++() { ++index; return *this; }
   //! post-increment
   _ChildIterator& operator++(int) { unsigned i = index; ++(*this); return _ChildIterator(i); }
+  //! addition
+  _ChildIterator& operator+(const int& j) { return _ChildIterator(index + j); }
   //! dereferece
   NodeType& operator*() { return *node[index]; }
   //! comparison
