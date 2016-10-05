@@ -16,6 +16,9 @@
 using namespace std;
 using namespace bpp;
 
+
+typedef unsigned StId;
+
 class NodeInfos  {
 	 typedef NodeTemplate<NodeInfos> MyNode;
 		protected:
