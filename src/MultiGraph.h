@@ -16,13 +16,13 @@ struct VertexMultiGraph
 
 struct EdgeMultiGraph
 {
-  double weight;
+  int weight;
   std::string color;
 };
 
 typedef boost::labeled_graph<
     boost::adjacency_list< multisetS , vecS, undirectedS, VertexMultiGraph, EdgeMultiGraph >,
-    pair<int, bool> > MultiGraphType;
+    pair<int, bool> , mapS > MultiGraphType;
 
 typedef MultiGraphType::vertex_descriptor vertexType;
 
