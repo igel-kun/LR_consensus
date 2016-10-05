@@ -176,6 +176,9 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
 		}
 	}
 	
+	int map[rootsOfMiSubtrees.size()+1][trees[1]->getCorrespondanceLenghtId()]; //this map will be useful later on
+	
+
 	// adding vertices and edges involving ui, with i \neq p
 	
 	for(unsigned int i = 0;i < Sis.size(); i++){
@@ -185,12 +188,19 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
             nodes_T2[j]->getInfos().setIsVisisted(false); //get isVisisted false for all node of T2
         }
         for(unsigned int j = 0;j < nodes_Sis.size(); j++){
-            MyNode * z = trees[1]->getNodeWithStId(nodes_Sis[j]->getInfos().getStId());
+            int id_z = nodes_Sis[j]->getInfos().getStId();
+            MyNode * z = trees[1]->getNodeWithStId(id_vj);
             int cp_father_z_in_T2 = trees[1]->getNodeWithStId(nodes_Sis[j]->getFather()->getInfos().getStId())->getInfos().getCentroidPathNumber();
             while((z->getInfos().getCentroidPathNumber() != cp_father_z_in_T2) && trees[1]->getNodeWithStId(corrNodesRootCentroidPaths[z->getInfos().getStId()])->hasFather()){
                 z= trees[1]->getNodeWithStId(corrNodesRootCentroidPaths[z->getInfos().getStId()])->getFather();
                 z->getInfos().setIsVisisted(true);
-            }   
+                #warning, check it is NULL in the default constructor
+                if(Sis[i]->getNodeWithStId(z->getInfos().getStId()) !=NULL) //vj is in Si
+                   map[i][z->getInfos().getStId()]=z->getInfos().getStId();  //vj is not in Si    
+                else
+                   map[i][z->getInfos().getStId()]=id_z;
+                }          
+              
         }
         
         for(unsigned int j = 0;j < nodes_T2.size(); j++){
@@ -200,10 +210,17 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
 			    boost::add_vertex(l, * Gxs[graph_to_add_edge_to]->getGraph());
 			    pair< int, bool > r(nodes_T2[j]->getInfos().getStId(), true); //get the node in Rx corresponding to nodes_T2[i]
 			    //auto v_y = boost::vertex_by_label(l, * Gxs[graph_to_add_edge_to]->getGraph()); //y is already in Gx
-                boost::add_edge_by_label(l,r, EdgeMultiGraph{ -1, "white" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
-                boost::add_edge_by_label(l,r, EdgeMultiGraph{ -1, "red" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
-                boost::add_edge_by_label(l,r, EdgeMultiGraph{ -1, "green" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
-
+                int weight =-1;
+                if(nodes_T2[j]->isLeaf() &&  nodes_T2[j]->getInfos().getCentroidPathNumber()==0){
+                    weight=1; //nodes_T2[j] is vq
+                }
+                boost::add_edge_by_label(l,r, EdgeMultiGraph{ weight, "white" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
+                boost::add_edge_by_label(l,r, EdgeMultiGraph{ weight, "red" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
+                boost::add_edge_by_label(l,r, EdgeMultiGraph{ weight, "green" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
+                int id_vj = nodes_T2[j]->getInfos().getStId();
+   
+                    
+                        
             }
         }
     
