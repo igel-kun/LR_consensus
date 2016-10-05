@@ -9,7 +9,7 @@
 
 using namespace bpp;
 
-void aggrementMatching(MultiGraph & Gx){
+void agreementMatching(MultiGraph & Gx){
     #warning TODO
 };
 
@@ -233,40 +233,41 @@ vector <int > mast(vector<MyTree *> trees, map<string,unsigned> association)
     	for(unsigned int k = numberCentroidPathsT2;k !=0 ; k--){ //for each Gx
     	    for (auto edges =boost::edges(* Gxs[k]->getGraph()); edges.first!= edges.second; ++edges.first){ //for each edge of Gx
     	       if ((* Gxs[k]->getGraph())[* edges.first].weight ==-1){ //we still have to set the edge
-    	            int id_ui = (* Gxs[k]->getGraph())[boost::source(* edges.first, * Gxs[k]->getGraph())].infos.first;
-    	            int i = trees[0]->getNodeWithStId(id_ui)->getInfos.getStId();
-    	            int id_vj = (* Gxs[k]->getGraph())[boost::target(* edges.first, * Gxs[k]->getGraph())].infos.first;
+    	            int id_ui = Gxs[k]->getGraph()->graph()[boost::source(* edges.first, * Gxs[k]->getGraph())].infos.first;
+    	            pair<int, bool> label_ui(id_ui, false);
+                  int i = trees[0]->getNodeWithStId(id_ui)->getInfos().getStId();
+    	            
+                  int id_vj = Gxs[k]->getGraph()->graph()[boost::target(* edges.first, * Gxs[k]->getGraph())].infos.first;
+    	            pair<int, bool> label_vj(id_vj, true);
     	            int id_y = map[i][id_vj];
     	            //setting the white weight
     	            if(id_vj != id_y){
-    	                (* Gxs[j]->getGraph())[* edges.first].weight=masts_Mi_tree[i][id_y];
+                    (* Gxs[k]->getGraph())[* edges.first].weight=masts_Mi_tree[i][id_y];
+    	            } else {
+                    //z is the child of y in T2 such that z is in Nj
+                    MyNode * y_in_Si = Sis[i]->getNodeWithStId(id_y);
+                    int id_z;
+                    #warning check that this is correct (getCentroidPathNumber()!=0) to check that z is n Nj
+                    if(y_in_Si->getSon(0)->getInfos().getCentroidPathNumber()!=0)
+                        id_z= y_in_Si->getSon(0)->getInfos().getStId();
+                    else
+                        id_z= y_in_Si->getSon(1)->getInfos().getStId();
+                    (* Gxs[k]->getGraph())[* edges.first].weight=masts_Mi_tree[i][id_z];
     	            }
-    	            else{
-    	                //z is the child of y in T2 such that z is in Nj
-    	                MyNode * y_in_Si = Sis[i]->getNodeWithStId(id_y);
-    	                int id_z;
-    	                #warning check that this is correct (getCentroidPathNumber()!=0) to check that z is n Nj
-    	                if(y_in_Si->getSon(0)->getInfos().getCentroidPathNumber()!=0)
-    	                    id_z= y_in_Si->getSon(0)->getInfos().getStId();
-    	                else
-    	                    id_z= y_in_Si->getSon(1)->getInfos().getStId();
-    	                (* Gxs[j]->getGraph())[* edges.first].weight=masts_Mi_tree[i][id_z];
-    	            }
-    	            
     	            //setting the green weight
-    	       	    int weightG =masts_Mi_tree[i][id_z];
-    	       	     boost::add_edge_by_label(l,r, EdgeMultiGraph{ weightG, "green" }, * Gxs[j]->getGraph()); 
+    	       	    int weightG = masts_Mi_tree[i][id_y];
+    	       	    boost::add_edge_by_label(label_ui, label_vj, EdgeMultiGraph{weightG, "green"}, * Gxs[k]->getGraph()); 
 
     	            //setting the red weight
-                    #warning, to finish once the matching algorithm has been implemented 
+                  #warning, to finish once the matching algorithm has been implemented 
     	            int weightR = 10000; //largest weight agreeemnt matching in G(y) containing only edges incident on or below vertex u_i in L(y);compute when G(y° is computed...
-    	            boost::add_edge_by_label(l,r, EdgeMultiGraph{ weightR, "red" }, * Gxs[j]->getGraph());
+    	            boost::add_edge_by_label(label_ui, label_vj, EdgeMultiGraph{ weightR, "red" }, * Gxs[k]->getGraph());
 
     	       }
    
     	    } 
     	         
-    	    aggrementMatching(Gxs[j]);
+    	    agreementMatching(*Gxs[k]);
     	}
 
         	    

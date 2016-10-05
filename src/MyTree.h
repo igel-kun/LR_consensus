@@ -16,6 +16,8 @@
 #include "NodeInfos.h"
 #include "MatrixTriplets.h"
 #include <iterator>
+#include <unordered_map>
+
 using namespace bpp;
 
 using namespace std;
@@ -80,17 +82,61 @@ struct DepthCompare{
 
 
 
-class MyTree: public TreeTemplate<MyNode> {
-public:
-
+class MyTree: public TreeTemplate<MyNode> 
+{
+protected:
 	vector<MyNode*> correspondanceId;
 	vector<MyNode*> leavesPreordered;
 
 	//vector< unsigned > centroidPaths ;
 
+  //! copy the StIds of the nodes in t, assuming we are a copy of the tree t
+  /** name_to_leaf should associate leaf names to the leaves in t **/
+  void copy_stids_from_leaf_names(const MyTree& t, MyNode& root, const unordered_map<string, const MyNode*>& name_to_leaf)
+  {
+    const MyNode* node_in_t = name_to_leaf.at(root.getName());
+    if(root.isLeaf()){
+      const StId stid = node_in_t->getInfos().getStId();
+      root.getInfos().setStId(stid);
+      correspondanceId[stid] = &root;
+      if(root.hasFather()){
+        MyNode* father = root.getFather();
+        const MyNode* father_in_t = node_in_t->getFather();
+        const StId father_stid = father_in_t->getInfos().getStId();
+        father->getInfos().setStId(father_stid);
+        correspondanceId[father_stid] = father;
+      }
+    } else {
+      for(auto& child: get_children(root)) 
+        copy_stids_from_leaf_names(t, child, name_to_leaf);
+      if(root.hasFather()){
+        MyNode* father = root.getFather();
+        const MyNode* father_in_t = node_in_t->getFather();
+        const StId father_stid = father_in_t->getInfos().getStId();
+        father->getInfos().setStId(father_stid);
+        correspondanceId[father_stid] = father;
+      }
+    }
+  }
+
+public:
  	MyTree(): TreeTemplate<MyNode>(){}
  	MyTree(MyNode& root): TreeTemplate<MyNode>(&root) {}
- 	MyTree(MyNode& root, unsigned dim): TreeTemplate<MyNode>(& root) {}
+ 	
+  //! copy the given tree and synchronize StIds, setting-up correspondanceId
+  MyTree(const MyTree& t): TreeTemplate<MyNode>(t) 
+  {
+    // we like to use Bpp's TreeTemplate cppy constructor, but it doesn't copy infos because... reasons
+    // so we have to associate the leaves using their names (which ARE copied) and then copy StIds bottom-up
+
+    // step 1: associate leaves
+    unordered_map<string, const MyNode*> name_to_leaf;
+    for(const auto& t_leaf: t.getLeaves()) name_to_leaf.emplace(t_leaf->getName(), t_leaf);
+
+    // copy the StIds bottom-up from the corresponding leaves
+    correspondanceId.resize(t.correspondanceId.size());
+    copy_stids_from_leaf_names(t, *getRootNode(), name_to_leaf);
+  }
 
  	virtual ~MyTree(){
     if(lca_oracle) delete lca_oracle;
@@ -111,8 +157,34 @@ public:
     return Children(node, node.getNumberOfSons());
   }
 
+  // delete node from the tree
+  void operator-=(const StId x)
+  {
+    if(x < correspondanceId.size()) throw NodeNotFoundException("operator-(): could't find node by StId", x);
+    MyNode* x_node = correspondanceId[x];
+    correspondanceId[x] = NULL;
+    if(!x_node->hasFather()) throw Exception("trying to remove the root");
+    MyNode* parent = x_node->getFather();
+
+    parent->removeSon(x_node);
+    if(x_node->isLeaf()){
+      if(parent->hasFather()){
+      } else {
+        // if the parent is the root and only one sibling remains, make that sibling the new root
+        if(parent->getNumberOfSons() == 1){
+//          MyNode* sibling = parent->getSons(0);
+//          correspondanceId[parent->getInfos().getStId()] = NULL;
+        }
+      }
+    } else {
+      for(auto& child: get_children(*x_node)){
+        child.removeFather();
+        parent->addSon(&child);
+      }
+    }
+  }
   
-    unsigned getCorrespondanceLenghtId(){
+  unsigned getCorrespondanceLenghtId(){
  		return correspondanceId.size();
  	}
  	
@@ -282,7 +354,8 @@ public:
   // NOTE: assumptions:
   //  1. idsLeaves is ordered with respect to a pre-order
   //  2. all depths and StIds have been set up
-  MyTree* induced_subtree(const vector<unsigned>& idsLeaves) const {
+  MyTree* induced_subtree(const vector<unsigned>& idsLeaves) const 
+  {
     assert(!idsLeaves.empty());
     
 

@@ -7,14 +7,14 @@
 #include "bitops.hpp"
 using namespace std;
 
-typedef int Vertex;
+typedef unsigned Vertex;
 typedef vector<Vertex> Edge;
 typedef list<Edge> Hypergraph;
 
 struct Graphstats {
-  int vertices;
-  int edgesums;
-  int hugeedges;
+  unsigned vertices;
+  unsigned edgesums;
+  unsigned hugeedges;
   Edge::size_type hugesize;
   Hypergraph::size_type edges;
   Edge::size_type edgesize;

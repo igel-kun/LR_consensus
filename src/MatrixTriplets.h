@@ -9,49 +9,48 @@ typedef NodeTemplate<NodeInfos> MyNode;
 class MatrixTriplets
 {	
 	private:
-	int dim;
-	unordered_set< int > ** GroupOfTriplets ;
+	unsigned dim;
+	unordered_set< StId > ** GroupOfTriplets ;
 	
 	public:
 	
 
 
-	void setDim(int dimTrees){
+	void setDim(unsigned dimTrees){
 		dim= dimTrees;
-		GroupOfTriplets = new unordered_set< int >*[dimTrees];
-		for (int i=0;i< dimTrees;i++){
-			GroupOfTriplets[i] = new unordered_set< int >[dimTrees];
+		GroupOfTriplets = new unordered_set< StId >*[dimTrees];
+		for (unsigned i=0;i< dimTrees;i++){
+			GroupOfTriplets[i] = new unordered_set< StId >[dimTrees];
 		}
 	}
 	
 	void eraseValues(){
-		for (int i=0;i< dim;i++){
-			for (int j=0;j< dim;j++){
+		for (unsigned i=0;i< dim;i++){
+			for (unsigned j=0;j< dim;j++){
 				GroupOfTriplets[i][j].clear();		
 			}
 		}
 	}
 		 
 	void deleteMatrix(){
-		for (int i=0;i< dim;i++){		
+		for (unsigned i=0;i< dim;i++){		
 			delete [] (GroupOfTriplets[i]);		
 		}	
 		delete [] (GroupOfTriplets);			
 	}
 	
-	int getDim(){
+	unsigned getDim(){
 		return dim;
 	}
 
-	unordered_set< int > & getSet (int i,int j){
-		if(i<=j){
+	unordered_set< StId > & getSet (unsigned i, unsigned j){
+		if(i<j)
 			return GroupOfTriplets[i][j];
-		}
 		else
 			return GroupOfTriplets[j][i];
 	}
 		
-	bool isTriplet (int i,int j,int z){
+	bool isTriplet(StId i, StId j, StId z){
 		if(i<=j){
 			return GroupOfTriplets[i][j].find(z)!=GroupOfTriplets[i][j].end();
 		}
@@ -61,9 +60,9 @@ class MatrixTriplets
 	
 	void add(MyNode  & I,MyNode  & J,MyNode  & Z) {
 		//cout << I.getName()  << " "<< J.getName()  << " " << Z.getName() << " " << endl;
-		int i= (I.getInfos()).getStId();
-		int j=  (J.getInfos()).getStId();
-		int z= ( Z.getInfos()).getStId();
+		StId i= (I.getInfos()).getStId();
+		StId j= (J.getInfos()).getStId();
+		StId z= (Z.getInfos()).getStId();
 		//cout << i << " " << j << " " << z << endl;
 		if (i<j) 
 			GroupOfTriplets[i][j].insert(z);
