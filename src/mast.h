@@ -131,54 +131,54 @@ vector <int > mast(vector<MyTree *> trees, map<string,unsigned> association)
 			}
 			
 		}
-		unsigned int numSons= currentNode->getNumberOfSons();
-		for(unsigned int j = 0;j < numSons; j++)
+		unsigned numSons= currentNode->getNumberOfSons();
+		for(unsigned j = 0;j < numSons; j++)
 			nodesToConsider.push_back(currentNode->getSon(j)); 
 	}
 	
 	//creating all the muligraphs we will need 
 	MultiGraph ** Gxs = new MultiGraph*[numberCentroidPathsT2];
-	for(unsigned int j = 0;j < numberCentroidPathsT2; j++)
+	for(unsigned j = 0;j < numberCentroidPathsT2; j++)
 		Gxs[j]= new MultiGraph();
 		
 	
 	//create the Rxs set, with the nodes ordered in preorder 
 	nodesToConsider.push_back(trees[1]->getRootNode());
 	while(! nodesToConsider.empty()){
-		MyNode * currentNode =nodesToConsider.front();
-    	nodesToConsider.pop_front();
-    	pair< int, bool > v(currentNode->getInfos().getStId(), true);
-    	auto vertex = boost::add_vertex(v, * Gxs[currentNode->getInfos().getCentroidPathNumber()]->getGraph());
-    	(* Gxs[currentNode->getInfos().getCentroidPathNumber()]->getGraph())[v].infos=v;
-    	Gxs[currentNode->getInfos().getCentroidPathNumber()]->addRxVertex(currentNode->getInfos().getStId());
-		unsigned int numSons= currentNode->getNumberOfSons();
-		for(unsigned int j = 0;j < numSons; j++)
-			nodesToConsider.push_back(currentNode->getSon(j)); 
+		MyNode * currentNode = nodesToConsider.front();
+    nodesToConsider.pop_front();
+    pair< int, bool > v(currentNode->getInfos().getStId(), true);
+    boost::add_vertex(v, * Gxs[currentNode->getInfos().getCentroidPathNumber()]->getGraph());
+    (* Gxs[currentNode->getInfos().getCentroidPathNumber()]->getGraph())[v].infos=v;
+    Gxs[currentNode->getInfos().getCentroidPathNumber()]->addRxVertex(currentNode->getInfos().getStId());
+    unsigned numSons= currentNode->getNumberOfSons();
+    for(unsigned j = 0;j < numSons; j++)
+      nodesToConsider.push_back(currentNode->getSon(j)); 
 	}
 	
 	// adding vertices and edges involving up
 	
-	if(! trees[1]->isPreprocessed()){
-  		trees[1]->setClades();
-  }	
+	if(! trees[1]->isPreprocessed()) trees[1]->setClades();
   
-	MyNode * twin_up_in_T2 = trees[1]->getNodeWithStId(ui[ui.size()-1]->getInfos().getStId());
-	for(unsigned int j = 0;j < numberCentroidPathsT2; j++){
-		MyNode * rootOfCP = trees[1]->getNodeWithStId(Gxs[j]->getRxVertices()[0]); //this is true because of the way RxVertices are added
-		int index_twin_up_in_T2_leafPreOrder = twin_up_in_T2->getInfos().getClade().first;
-		pair <int, int > clade_rootOfCP = rootOfCP->getInfos().getClade();
-		if (index_twin_up_in_T2_leafPreOrder >= clade_rootOfCP.first && index_twin_up_in_T2_leafPreOrder <=clade_rootOfCP.second){ // the twin of up in T2 is in L(T2x)
-			pair< int, bool > v(ui[ui.size()-1]->getInfos().getStId(), false);
+  const MyNode& up = *ui.back();
+  const StId up_StId = up.getInfos().getStId();
+	const MyNode* twin_up_in_T2 = trees[1]->getNodeWithStId(up_StId);
+	const Clade& clade_twin_up_in_T2 = twin_up_in_T2->getInfos().getClade();
+	const pair<int, bool> v(up_StId, false);
+	for(unsigned j = 0; j < numberCentroidPathsT2; j++){
+		const MyNode* rootOfCP = trees[1]->getNodeWithStId(Gxs[j]->getRxVertices()[0]); //this is true because of the way RxVertices are added
+		const Clade& clade_rootOfCP = rootOfCP->getInfos().getClade();
+		if(clade_rootOfCP.contains(clade_twin_up_in_T2)){
 			auto vertex = boost::add_vertex(v, * Gxs[j]->getGraph());
-			(* Gxs[j]->getGraph())[v].infos=v;
-    		Gxs[j]->addRxVertex(vertex);
-    		MyNode * vq = trees[1]->getNodeWithStId(Gxs[j]->getRxVertices().back()); //this is true because of the way RxVertices are added
-			const MyNode *lca = trees[1]->getLCA(vq,twin_up_in_T2);
-			if(lca->getInfos().getCentroidPathNumber()==j){//the LCA is in Rx
+			(* Gxs[j]->getGraph())[v].infos = v;
+   		Gxs[j]->addRxVertex(vertex);
+   		MyNode * vq = trees[1]->getNodeWithStId(Gxs[j]->getRxVertices().back()); //this is true because of the way RxVertices are added
+			const MyNode* lca = trees[1]->getLCA(vq, twin_up_in_T2);
+			if(lca->getInfos().getCentroidPathNumber() == j){//the LCA is in Rx
 				pair< int, bool > vlca(lca->getInfos().getStId(), true);
-				boost::add_edge_by_label(v,vlca, EdgeMultiGraph{ 1, "white" }, * Gxs[j]->getGraph() );
-				boost::add_edge_by_label(v,vlca, EdgeMultiGraph{ 1, "red" }, * Gxs[j]->getGraph() );
-				boost::add_edge_by_label(v,vlca, EdgeMultiGraph{ 1, "green" }, * Gxs[j]->getGraph() );
+				boost::add_edge_by_label(v, vlca, EdgeMultiGraph{ 1, "white" }, * Gxs[j]->getGraph() );
+				boost::add_edge_by_label(v, vlca, EdgeMultiGraph{ 1, "red" },   * Gxs[j]->getGraph() );
+				boost::add_edge_by_label(v, vlca, EdgeMultiGraph{ 1, "green" }, * Gxs[j]->getGraph() );
 			}
 		}
 	}
@@ -188,16 +188,16 @@ vector <int > mast(vector<MyTree *> trees, map<string,unsigned> association)
 
 	// adding vertices and edges involving ui, with i \neq p
 	
-	for(unsigned int i = 0;i < Sis.size(); i++){
+	for(unsigned i = 0;i < Sis.size(); i++){
 	    vector <MyNode *> nodes_Sis = Sis[i]->getNodes();
 	    vector <MyNode *> nodes_T2 = trees[1]->getNodes();
-        for(unsigned int j = 0;j < nodes_T2.size(); j++){
+        for(unsigned j = 0;j < nodes_T2.size(); j++){
             nodes_T2[j]->getInfos().setIsVisisted(false); //get isVisisted false for all node of T2
         }
-        for(unsigned int j = 0;j < nodes_Sis.size(); j++){
+        for(unsigned j = 0;j < nodes_Sis.size(); j++){
             int id_z = nodes_Sis[j]->getInfos().getStId();
             MyNode * z = trees[1]->getNodeWithStId(id_z);
-            int cp_father_z_in_T2 = trees[1]->getNodeWithStId(nodes_Sis[j]->getFather()->getInfos().getStId())->getInfos().getCentroidPathNumber();
+            unsigned cp_father_z_in_T2 = trees[1]->getNodeWithStId(nodes_Sis[j]->getFather()->getInfos().getStId())->getInfos().getCentroidPathNumber();
             while((z->getInfos().getCentroidPathNumber() != cp_father_z_in_T2) && trees[1]->getNodeWithStId(corrNodesRootCentroidPaths[z->getInfos().getStId()])->hasFather()){
                 z= trees[1]->getNodeWithStId(corrNodesRootCentroidPaths[z->getInfos().getStId()])->getFather();
                 z->getInfos().setIsVisisted(true);
@@ -210,27 +210,26 @@ vector <int > mast(vector<MyTree *> trees, map<string,unsigned> association)
               
         }
         
-        for(unsigned int j = 0;j < nodes_T2.size(); j++){
+        for(unsigned j = 0;j < nodes_T2.size(); j++){
             if(nodes_T2[j]->getInfos().getIsVisisted()){
             	pair< int, bool > l(ui[i]->getInfos().getStId(), false); //ui is to add to a Lx
             	int graph_to_add_edge_to = trees[1]->getNodeWithStId(corrNodesRootCentroidPaths[nodes_T2[j]->getInfos().getStId()])->getInfos().getCentroidPathNumber(); //get the Gx to which add ui
-			    auto vertex = boost::add_vertex(l, * Gxs[graph_to_add_edge_to]->getGraph());
-			    (* Gxs[graph_to_add_edge_to]->getGraph())[l].infos=l;
-			    pair< int, bool > r(nodes_T2[j]->getInfos().getStId(), true); //get the node in Rx corresponding to nodes_T2[i]
-			    //auto v_y = boost::vertex_by_label(l, * Gxs[graph_to_add_edge_to]->getGraph()); //y is already in Gx
-                int weight =-1;
-                if(nodes_T2[j]->isLeaf() &&  nodes_T2[j]->getInfos().getCentroidPathNumber()==0){
-                    boost::add_edge_by_label(l,r, EdgeMultiGraph{ 1, "white" }, * Gxs[graph_to_add_edge_to]->getGraph()); 
-                    boost::add_edge_by_label(l,r, EdgeMultiGraph{ 1, "red" }, * Gxs[graph_to_add_edge_to]->getGraph()); 
-                    boost::add_edge_by_label(l,r, EdgeMultiGraph{ 1, "green" }, * Gxs[graph_to_add_edge_to]->getGraph());             
-                }
-                else{
-                    boost::add_edge_by_label(l,r, EdgeMultiGraph{ -1, "white" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
-                } 
+			        boost::add_vertex(l, * Gxs[graph_to_add_edge_to]->getGraph());
+			        (* Gxs[graph_to_add_edge_to]->getGraph())[l].infos=l;
+    			    pair< int, bool > r(nodes_T2[j]->getInfos().getStId(), true); //get the node in Rx corresponding to nodes_T2[i]
+    			    //auto v_y = boost::vertex_by_label(l, * Gxs[graph_to_add_edge_to]->getGraph()); //y is already in Gx
+              if(nodes_T2[j]->isLeaf() &&  nodes_T2[j]->getInfos().getCentroidPathNumber()==0){
+                  boost::add_edge_by_label(l,r, EdgeMultiGraph{ 1, "white" }, * Gxs[graph_to_add_edge_to]->getGraph()); 
+                  boost::add_edge_by_label(l,r, EdgeMultiGraph{ 1, "red" }, * Gxs[graph_to_add_edge_to]->getGraph()); 
+                  boost::add_edge_by_label(l,r, EdgeMultiGraph{ 1, "green" }, * Gxs[graph_to_add_edge_to]->getGraph());             
+              }
+              else{
+                  boost::add_edge_by_label(l,r, EdgeMultiGraph{ -1, "white" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
+              } 
             }
         }
     
-    	for(unsigned int k = numberCentroidPathsT2;k !=0 ; k--){ //for each Gx
+    	for(unsigned k = numberCentroidPathsT2;k !=0 ; k--){ //for each Gx
     	    for (auto edges =boost::edges(* Gxs[k]->getGraph()); edges.first!= edges.second; ++edges.first){ //for each edge of Gx
     	       if ((* Gxs[k]->getGraph())[* edges.first].weight ==-1){ //we still have to set the edge
     	            int id_ui = Gxs[k]->getGraph()->graph()[boost::source(* edges.first, * Gxs[k]->getGraph())].infos.first;

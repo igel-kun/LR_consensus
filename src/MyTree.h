@@ -46,6 +46,7 @@ struct _ChildIterator{
   _ChildIterator operator+(const int& j) const { return _ChildIterator(node, index + j); }
   //! dereferece
   NodeType& operator*() { return *node[index]; }
+  NodeType* operator->() { return node[index]; }
   //! comparison
   bool operator!=(const _ChildIterator& it) { return index != it.index; }
 };
@@ -163,25 +164,30 @@ public:
     if(x < correspondanceId.size()) throw NodeNotFoundException("operator-(): could't find node by StId", x);
     MyNode* x_node = correspondanceId[x];
     correspondanceId[x] = NULL;
-    if(!x_node->hasFather()) throw Exception("trying to remove the root");
-    MyNode* parent = x_node->getFather();
+    if(x_node->hasFather()) {
+      MyNode* parent = x_node->getFather();
 
-    parent->removeSon(x_node);
-    if(x_node->isLeaf()){
-      if(parent->hasFather()){
-      } else {
-        // if the parent is the root and only one sibling remains, make that sibling the new root
-        if(parent->getNumberOfSons() == 1){
-//          MyNode* sibling = parent->getSons(0);
-//          correspondanceId[parent->getInfos().getStId()] = NULL;
+      parent->removeSon(x_node);
+      if(!x_node->isLeaf()){
+        for(auto& child: get_children(*x_node)){
+          child.removeFather();
+          parent->addSon(&child);
         }
-      }
+      } else operator-=(parent);
     } else {
-      for(auto& child: get_children(*x_node)){
-        child.removeFather();
-        parent->addSon(&child);
-      }
+      // x_node is the root
+      if(x_node->getNumberOfSons() > 1) throw Exception("trying to remove root with multiple children");
+      MyNode* child = x_node->getSon(0);
+      child->removeFather();
+      x_node->removeSon(child);
+      setRootNode(child);
     }
+    delete x_node;
+  }
+
+  void operator-=(const MyNode* node)
+  {
+    operator-=(node->getInfos().getStId());
   }
   
   unsigned getCorrespondanceLenghtId(){
@@ -456,18 +462,15 @@ public:
   
 
   void setClades(MyNode & currentNode){
-  	if(currentNode.isLeaf()){
-  		pair <int,int> ids(leavesPreordered.size(),leavesPreordered.size()); // preprocess the clade of a leaf for later
-  	  	currentNode.getInfos().setClade(ids);
+  	if(currentNode.isLeaf()){ // preprocess the clade of a leaf for later
+  	  currentNode.getInfos().setClade(Clade(leavesPreordered.size()));
   		leavesPreordered.push_back(& currentNode);
-  	}	
-  	else{
-  		int startClade = leavesPreordered.size();
-		for(auto& child: get_children(currentNode))
+  	} else{
+  		const unsigned startClade = leavesPreordered.size();
+		  for(auto& child: get_children(currentNode))
       		setClades(child); // recursive calls for sons
-       int endClade = leavesPreordered.size()-1;
-	   pair <int,int> ids(startClade,endClade);
-       currentNode.getInfos().setClade(ids);
+       const unsigned endClade = leavesPreordered.size()-1;
+       currentNode.getInfos().setClade(Clade(startClade, endClade));
     }  		
   }
   
@@ -482,25 +485,22 @@ public:
 	
   void setTriplets(MatrixTriplets & Triplets, MyNode & currentNode){   
 		
-		for(auto& child: get_children(currentNode)){
+		for(auto& child: get_children(currentNode))
       		setTriplets(Triplets, child); // recursive calls for sons
-		}
 		
-		pair<int,int> cladeCN= currentNode.getInfos().getClade();
+		const Clade& cladeCN = currentNode.getInfos().getClade();
 
 		for(auto childitA = get_children(currentNode).begin();childitA !=get_children(currentNode).end();childitA++){
-			pair<int,int> cladeA= (* childitA).getInfos().getClade();
+			const Clade& cladeA = childitA->getInfos().getClade();
 			for(auto childitB = childitA + 1; childitB !=get_children(currentNode).end();childitB++){
-				pair<int,int> cladeB= (* childitB).getInfos().getClade();
+				const Clade& cladeB= childitB->getInfos().getClade();
 				
 				for(unsigned int i = cladeA.first;i <= cladeA.second; i++){
 					for(unsigned int j = cladeB.first;j < cladeB.second; j++){
-						for(unsigned int z = 0;z < leavesPreordered.size(); z++){
-							if(z==cladeCN.first)
-								z=cladeCN.second;
-							else
+						for(unsigned int z = 0; z < cladeCN.first; ++z)
 								Triplets.add(* leavesPreordered[i],* leavesPreordered[j], * leavesPreordered[z]);
-						}	
+						for(unsigned int z = cladeCN.second + 1; z < leavesPreordered.size(); ++z)
+								Triplets.add(* leavesPreordered[i],* leavesPreordered[j], * leavesPreordered[z]);
 					}
 				}
 			}
