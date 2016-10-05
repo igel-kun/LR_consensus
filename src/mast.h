@@ -59,7 +59,10 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
 	vector < MyNode * > rootsOfMiSubtrees; // the roots of the subtrees that are hanging from the centroid path of the root
 	MyNode * currentNode = trees[0]->getRootNode();
 	unsigned i=0;
+	vector < MyNode * > ui;
+	
 	while(! currentNode->isLeaf()){
+	    ui.push_back(currentNode); //the ui are set 
 	     if(currentNode->getSon(0)->getInfos().getCentroidPathNumber()==0){
 	     	currentNode = currentNode->getSon(0);
 	     	rootsOfMiSubtrees.push_back( currentNode->getSon(1));
@@ -75,8 +78,9 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
 	     i++; //number of Mi
 
 	}
-	int up_id =currentNode->getInfos().getStId() ;  // the stid of up
-
+	//int up_id =currentNode->getInfos().getStId() ;  // the stid of up
+    ui.push_back(currentNode);
+    
 
 
 	vector<unsigned> * corrMiT2 = new vector<unsigned>[i-1];
@@ -85,11 +89,15 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
 		corrMiT2[corrMi[orderedIds[y]]].push_back(orderedIds[y]); // to comment
 	}
 
+    vector<MyTree *> Sis;
+    
 	for(unsigned y=0;y< rootsOfMiSubtrees.size();y++){
 
 		vector<MyTree *> recursiveCallTrees;
 		recursiveCallTrees.push_back(new MyTree(* rootsOfMiSubtrees[y])); // subtrees Mi in T1
-		recursiveCallTrees.push_back(trees[1]->induced_subtree(corrMiT2[y]));
+		MyTree * Si = trees[1]->induced_subtree(corrMiT2[y]);
+		recursiveCallTrees.push_back(Si);
+		Sis.push_back(Si);
 		mast(recursiveCallTrees, association);
 	}
 	
@@ -113,7 +121,7 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
 		 	if(currentNode->getInfos().getCentroidPathNumber()==father->getInfos().getCentroidPathNumber())
 		 		corrNodesRootCentroidPaths[idNode]=corrNodesRootCentroidPaths[idFather]; //same root of centroid path as its father
 		 	else{
-		 		corrNodesRootCentroidPaths[idNode]=idNode; //the node is a root of a centroid path
+		 		corrNodesRootCentroidPaths[idNode]=idNode; //the node is a root of a centroid path in T2
 				numberCentroidPathsT2++;
 			}
 			
@@ -148,13 +156,13 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
   		trees[1]->setClades();
   }	
   
-	MyNode * twin_up_in_T2 = trees[1]->getNodeWithStId(up_id);
+	MyNode * twin_up_in_T2 = trees[1]->getNodeWithStId(ui[ui.size()-1]->getInfos().getStId());
 	for(unsigned int j = 0;j < numberCentroidPathsT2; j++){
 		MyNode * rootOfCP = trees[1]->getNodeWithStId(Gxs[j]->getRxVertices()[0]); //this is true because of the way RxVertices are added
 		int index_twin_up_in_T2_leafPreOrder = twin_up_in_T2->getInfos().getClade().first;
 		pair <int, int > clade_rootOfCP = rootOfCP->getInfos().getClade();
 		if (index_twin_up_in_T2_leafPreOrder >= clade_rootOfCP.first && index_twin_up_in_T2_leafPreOrder <=clade_rootOfCP.second){ // the twin of up in T2 is in L(T2x)
-			pair< int, bool > v(up_id, false);
+			pair< int, bool > v(ui[ui.size()-1]->getInfos().getStId(), false);
 			auto vertex = boost::add_vertex(v, * Gxs[j]->getGraph());
     		Gxs[j]->addRxVertex(vertex);
     		MyNode * vq = trees[1]->getNodeWithStId(Gxs[j]->getRxVertices().back()); //this is true because of the way RxVertices are added
@@ -168,6 +176,44 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
 		}
 	}
 	
+	// adding vertices and edges involving ui, with i \neq p
+	
+	for(unsigned int i = 0;i < Sis; i++){
+	    vector <MyNode *> nodes_Sis = Sis.getNodes();
+	    vector <MyNode *> nodes_T2 = trees[1].getNodes();
+        for(unsigned int i = 0;i < nodes_T2.size(); i++){
+            nodes_T2[i]->getInfos().setIsVisisted(false); //get isVisisted false for all node of T2
+        }
+        for(unsigned int i = 0;i < nodes_Sis.size(); i++){
+            MyNode * z = nodes_T2[i]->getNodeWithStId(Sis[i]->getInfos().getStId());
+            int cp_father_z_in_T2 = nodes_T2[i]->getNodeWithStId(Sis[i]->getFather()->getInfos().getStId())->getInfos().getCentroidPathNumber();
+            while((z->getInfos().getCentroidPathNumber() != cp_father_z_in_T2) && corrNodesRootCentroidPaths[z->getInfos().getStId()]->hasFather()){
+                z= corrNodesRootCentroidPaths[z->getInfos().getStId()]->getFather();
+                z->getInfos().setIsVisisted(true);
+            }   
+        }
+        
+        for(unsigned int i = 0;i < nodes_T2.size(); i++){
+            if(nodes_T2[i]->getInfos().getIsVisisted()){
+            	pair< int, bool > l(ui[i]->getInfos().getStId(), false); //ui is to add to a Lx
+            	int graph_to_add_edge_to = corrNodesRootCentroidPaths[nodes_T2[i]->getInfos().getStId()]->getInfos().getCentroidPathNumber() //get the Gx to which add ui
+			    auto v_ui = boost::add_vertex(l, * Gxs[graph_to_add_edge_to]->getGraph());
+			    pair< int, bool > r(nodes_T2[i]->getInfos().getStId(), true); //get the node in Rx corresponding to nodes_T2[i]
+			    auto v_y = boost::vertex_by_label(l, * Gxs[graph_to_add_edge_to]->getGraph()); //y is already in Gx
+                boost::edge_by_label(v_ui,v_y, EdgeMultiGraph{ -1, "white" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
+                boost::edge_by_label(v_ui,v_y, EdgeMultiGraph{ -1, "red" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
+                boost::edge_by_label(v_ui,v_y, EdgeMultiGraph{ -1, "green" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
+
+            }
+        }
+            
+            
+            edge_by_label
+        }    	    
+	}
+
+	
+
 	
 	delete [] corrMiT2;
 

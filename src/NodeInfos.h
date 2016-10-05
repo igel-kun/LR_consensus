@@ -24,11 +24,21 @@ class NodeInfos  {
 		int depth; 
 		int numberOfDescendents;
 		int stId;
+		bool isVisited;
 		int preorder;
 		pair<int, int> clade;
 
 	public:
 
+        void setIsVisisted(bool vis){
+			isVisited = vis;
+		}
+		
+		bool getIsVisisted() const{
+			return isVisited ;
+		}
+	
+	
         void setCentroidPathNumber(int id){
 			centroidPathNumber = id;
 		}
