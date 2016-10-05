@@ -178,38 +178,36 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
 	
 	// adding vertices and edges involving ui, with i \neq p
 	
-	for(unsigned int i = 0;i < Sis; i++){
-	    vector <MyNode *> nodes_Sis = Sis.getNodes();
-	    vector <MyNode *> nodes_T2 = trees[1].getNodes();
-        for(unsigned int i = 0;i < nodes_T2.size(); i++){
-            nodes_T2[i]->getInfos().setIsVisisted(false); //get isVisisted false for all node of T2
+	for(unsigned int i = 0;i < Sis.size(); i++){
+	    vector <MyNode *> nodes_Sis = Sis[i]->getNodes();
+	    vector <MyNode *> nodes_T2 = trees[1]->getNodes();
+        for(unsigned int j = 0;j < nodes_T2.size(); j++){
+            nodes_T2[j]->getInfos().setIsVisisted(false); //get isVisisted false for all node of T2
         }
-        for(unsigned int i = 0;i < nodes_Sis.size(); i++){
-            MyNode * z = nodes_T2[i]->getNodeWithStId(Sis[i]->getInfos().getStId());
-            int cp_father_z_in_T2 = nodes_T2[i]->getNodeWithStId(Sis[i]->getFather()->getInfos().getStId())->getInfos().getCentroidPathNumber();
-            while((z->getInfos().getCentroidPathNumber() != cp_father_z_in_T2) && corrNodesRootCentroidPaths[z->getInfos().getStId()]->hasFather()){
-                z= corrNodesRootCentroidPaths[z->getInfos().getStId()]->getFather();
+        for(unsigned int j = 0;j < nodes_Sis.size(); j++){
+            MyNode * z = trees[1]->getNodeWithStId(nodes_Sis[j]->getInfos().getStId());
+            int cp_father_z_in_T2 = trees[1]->getNodeWithStId(nodes_Sis[j]->getFather()->getInfos().getStId())->getInfos().getCentroidPathNumber();
+            while((z->getInfos().getCentroidPathNumber() != cp_father_z_in_T2) && trees[1]->getNodeWithStId(corrNodesRootCentroidPaths[z->getInfos().getStId()])->hasFather()){
+                z= trees[1]->getNodeWithStId(corrNodesRootCentroidPaths[z->getInfos().getStId()])->getFather();
                 z->getInfos().setIsVisisted(true);
             }   
         }
         
-        for(unsigned int i = 0;i < nodes_T2.size(); i++){
-            if(nodes_T2[i]->getInfos().getIsVisisted()){
+        for(unsigned int j = 0;j < nodes_T2.size(); j++){
+            if(nodes_T2[j]->getInfos().getIsVisisted()){
             	pair< int, bool > l(ui[i]->getInfos().getStId(), false); //ui is to add to a Lx
-            	int graph_to_add_edge_to = corrNodesRootCentroidPaths[nodes_T2[i]->getInfos().getStId()]->getInfos().getCentroidPathNumber() //get the Gx to which add ui
-			    auto v_ui = boost::add_vertex(l, * Gxs[graph_to_add_edge_to]->getGraph());
-			    pair< int, bool > r(nodes_T2[i]->getInfos().getStId(), true); //get the node in Rx corresponding to nodes_T2[i]
-			    auto v_y = boost::vertex_by_label(l, * Gxs[graph_to_add_edge_to]->getGraph()); //y is already in Gx
-                boost::edge_by_label(v_ui,v_y, EdgeMultiGraph{ -1, "white" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
-                boost::edge_by_label(v_ui,v_y, EdgeMultiGraph{ -1, "red" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
-                boost::edge_by_label(v_ui,v_y, EdgeMultiGraph{ -1, "green" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
+            	int graph_to_add_edge_to = trees[1]->getNodeWithStId(corrNodesRootCentroidPaths[nodes_T2[j]->getInfos().getStId()])->getInfos().getCentroidPathNumber(); //get the Gx to which add ui
+			    boost::add_vertex(l, * Gxs[graph_to_add_edge_to]->getGraph());
+			    pair< int, bool > r(nodes_T2[j]->getInfos().getStId(), true); //get the node in Rx corresponding to nodes_T2[i]
+			    //auto v_y = boost::vertex_by_label(l, * Gxs[graph_to_add_edge_to]->getGraph()); //y is already in Gx
+                boost::add_edge_by_label(l,r, EdgeMultiGraph{ -1, "white" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
+                boost::add_edge_by_label(l,r, EdgeMultiGraph{ -1, "red" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
+                boost::add_edge_by_label(l,r, EdgeMultiGraph{ -1, "green" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
 
             }
         }
-            
-            
-            edge_by_label
-        }    	    
+    
+        	    
 	}
 
 	
