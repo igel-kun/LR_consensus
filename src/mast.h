@@ -149,7 +149,7 @@ vector <int > mast(vector<MyTree *> trees, map<string,unsigned> association)
     	nodesToConsider.pop_front();
     	pair< int, bool > v(currentNode->getInfos().getStId(), true);
     	auto vertex = boost::add_vertex(v, * Gxs[currentNode->getInfos().getCentroidPathNumber()]->getGraph());
-    	* Gxs[currentNode->getInfos().getCentroidPathNumber()]->getGraph()[vertex].infos=v;
+    	(* Gxs[currentNode->getInfos().getCentroidPathNumber()]->getGraph())[vertex].infos=v;
     	Gxs[currentNode->getInfos().getCentroidPathNumber()]->addRxVertex(currentNode->getInfos().getStId());
 		unsigned int numSons= currentNode->getNumberOfSons();
 		for(unsigned int j = 0;j < numSons; j++)
@@ -170,7 +170,7 @@ vector <int > mast(vector<MyTree *> trees, map<string,unsigned> association)
 		if (index_twin_up_in_T2_leafPreOrder >= clade_rootOfCP.first && index_twin_up_in_T2_leafPreOrder <=clade_rootOfCP.second){ // the twin of up in T2 is in L(T2x)
 			pair< int, bool > v(ui[ui.size()-1]->getInfos().getStId(), false);
 			auto vertex = boost::add_vertex(v, * Gxs[j]->getGraph());
-			* Gxs[j]->getGraph()[vertex].infos=v;
+			(* Gxs[j]->getGraph())[vertex].infos=v;
     		Gxs[j]->addRxVertex(vertex);
     		MyNode * vq = trees[1]->getNodeWithStId(Gxs[j]->getRxVertices().back()); //this is true because of the way RxVertices are added
 			const MyNode *lca = trees[1]->getLCA(vq,twin_up_in_T2);
