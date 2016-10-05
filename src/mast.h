@@ -9,9 +9,11 @@
 
 using namespace bpp;
 
+void aggrementMatching(MultiGraph & Gx){
+    #warning TODO
+};
 
-
-void mast(vector<MyTree *> trees, map<string,unsigned> association)
+vector <int > mast(vector<MyTree *> trees, map<string,unsigned> association)
 {
 	map<string,unsigned>::iterator iter;
 	unsigned maxId = trees[0]->getLeaves().size();
@@ -91,6 +93,8 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
 
     vector<MyTree *> Sis;
     
+    vector < vector <int > > masts_Mi_tree; 
+    
 	for(unsigned y=0;y< rootsOfMiSubtrees.size();y++){
 
 		vector<MyTree *> recursiveCallTrees;
@@ -98,7 +102,8 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
 		MyTree * Si = trees[1]->induced_subtree(corrMiT2[y]);
 		recursiveCallTrees.push_back(Si);
 		Sis.push_back(Si);
-		mast(recursiveCallTrees, association);
+		vector <int > masts_for_Mi = mast(recursiveCallTrees, association);
+		masts_Mi_tree.push_back(masts_for_Mi);
 	}
 	
 	//STEP 3
@@ -144,6 +149,7 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
     	nodesToConsider.pop_front();
     	pair< int, bool > v(currentNode->getInfos().getStId(), true);
     	auto vertex = boost::add_vertex(v, * Gxs[currentNode->getInfos().getCentroidPathNumber()]->getGraph());
+    	* Gxs[currentNode->getInfos().getCentroidPathNumber()]->getGraph()[vertex].infos=v;
     	Gxs[currentNode->getInfos().getCentroidPathNumber()]->addRxVertex(currentNode->getInfos().getStId());
 		unsigned int numSons= currentNode->getNumberOfSons();
 		for(unsigned int j = 0;j < numSons; j++)
@@ -164,6 +170,7 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
 		if (index_twin_up_in_T2_leafPreOrder >= clade_rootOfCP.first && index_twin_up_in_T2_leafPreOrder <=clade_rootOfCP.second){ // the twin of up in T2 is in L(T2x)
 			pair< int, bool > v(ui[ui.size()-1]->getInfos().getStId(), false);
 			auto vertex = boost::add_vertex(v, * Gxs[j]->getGraph());
+			* Gxs[j]->getGraph()[vertex].infos=v;
     		Gxs[j]->addRxVertex(vertex);
     		MyNode * vq = trees[1]->getNodeWithStId(Gxs[j]->getRxVertices().back()); //this is true because of the way RxVertices are added
 			const MyNode *lca = trees[1]->getLCA(vq,twin_up_in_T2);
@@ -176,7 +183,7 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
 		}
 	}
 	
-	int map[rootsOfMiSubtrees.size()+1][trees[1]->getCorrespondanceLenghtId()]; //this map will be useful later on
+	int map[rootsOfMiSubtrees.size()][trees[1]->getCorrespondanceLenghtId()]; //this map will be useful later on
 	
 
 	// adding vertices and edges involving ui, with i \neq p
@@ -207,23 +214,61 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
             if(nodes_T2[j]->getInfos().getIsVisisted()){
             	pair< int, bool > l(ui[i]->getInfos().getStId(), false); //ui is to add to a Lx
             	int graph_to_add_edge_to = trees[1]->getNodeWithStId(corrNodesRootCentroidPaths[nodes_T2[j]->getInfos().getStId()])->getInfos().getCentroidPathNumber(); //get the Gx to which add ui
-			    boost::add_vertex(l, * Gxs[graph_to_add_edge_to]->getGraph());
+			    auto vertex = boost::add_vertex(l, * Gxs[graph_to_add_edge_to]->getGraph());
+			    * Gxs[graph_to_add_edge_to]->getGraph()[vertex].infos=l;
 			    pair< int, bool > r(nodes_T2[j]->getInfos().getStId(), true); //get the node in Rx corresponding to nodes_T2[i]
 			    //auto v_y = boost::vertex_by_label(l, * Gxs[graph_to_add_edge_to]->getGraph()); //y is already in Gx
-                double weight =-1;
+                int weight =-1;
                 if(nodes_T2[j]->isLeaf() &&  nodes_T2[j]->getInfos().getCentroidPathNumber()==0){
-                    weight=1; //nodes_T2[j] is vq
+                    boost::add_edge_by_label(l,r, EdgeMultiGraph{ 1, "white" }, * Gxs[graph_to_add_edge_to]->getGraph()); 
+                    boost::add_edge_by_label(l,r, EdgeMultiGraph{ 1, "red" }, * Gxs[graph_to_add_edge_to]->getGraph()); 
+                    boost::add_edge_by_label(l,r, EdgeMultiGraph{ 1, "green" }, * Gxs[graph_to_add_edge_to]->getGraph());             
                 }
-                boost::add_edge_by_label(l,r, EdgeMultiGraph{ weight, "white" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
-                boost::add_edge_by_label(l,r, EdgeMultiGraph{ weight, "red" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
-                boost::add_edge_by_label(l,r, EdgeMultiGraph{ weight, "green" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
-                int id_vj = nodes_T2[j]->getInfos().getStId();
-   
-                    
-                        
+                else{
+                    boost::add_edge_by_label(l,r, EdgeMultiGraph{ -1, "white" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
+                } 
             }
         }
     
+    	for(unsigned int k = numberCentroidPathsT2;k !=0 ; k--){ //for each Gx
+    	    for (auto edges =boost::edges(* Gxs[k]->getGraph()); edges.first!= edges.second; ++edges.first){ //for each edge of Gx
+    	       if (* Gxs[k]->getGraph()[* edges.first].weight ==-1){ //we still have to set the edge
+    	            int id_ui = * Gxs[k]->getGraph()[boost::source(* edges.first, * Gxs[k]->getGraph())].infos.first;
+    	            int i = trees[0]->getNodeWithStId(id_ui)->getInfos.getStId();
+    	            int id_vj = * Gxs[k]->getGraph()[boost::target(* edges.first, * Gxs[k]->getGraph())].infos.first;
+    	            int id_y = map[i][id_vj];
+    	            //setting the white weight
+    	            if(id_vj != id_y){
+    	                * Gxs[j]->getGraph()[* edges.first].weight=masts_Mi_tree[i][id_y];
+    	            }
+    	            else{
+    	                //z is the child of y in T2 such that z is in Nj
+    	                MyNode * y_in_Si = Sis[i]->getNodeWithStId(id_y);
+    	                int id_z;
+    	                #warning check that this is correct (getCentroidPathNumber()!=0) to check that z is n Nj
+    	                if(y_in_Si->getSon(0)->getInfos().getCentroidPathNumber()!=0)
+    	                    id_z= y_in_Si->getSon(0)->getInfos().getStId();
+    	                else
+    	                    id_z= y_in_Si->getSon(1)->getInfos().getStId();
+    	                * Gxs[j]->getGraph()[* edges.first].weight=masts_Mi_tree[i][id_z];
+    	            }
+    	            
+    	            //setting the green weight
+    	       	    int weightG =masts_Mi_tree[i][id_z];
+    	       	     boost::add_edge_by_label(l,r, EdgeMultiGraph{ weightG, "green" }, * Gxs[j]->getGraph()); 
+
+    	            //setting the red weight
+                    #warning, to finish once the matching algorithm has been implemented 
+    	            int weightR = 10000; //largest weight agreeemnt matching in G(y) containing only edges incident on or below vertex u_i in L(y);compute when G(y° is computed...
+    	            boost::add_edge_by_label(l,r, EdgeMultiGraph{ weightR, "red" }, * Gxs[j]->getGraph());
+
+    	       }
+   
+    	    } 
+    	         
+    	    aggrementMatching(Gxs[j]);
+    	}
+
         	    
 	}
 
@@ -231,7 +276,9 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
 
 	
 	delete [] corrMiT2;
-
+	vector <int > masts;
+    #warning fill the vector once the matching algorithm has been implemented 
+    return masts;
  }
 
 #endif /*MAST_H_*/

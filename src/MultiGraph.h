@@ -16,7 +16,7 @@ struct VertexMultiGraph
 
 struct EdgeMultiGraph
 {
-  double weight;
+  int weight;
   std::string color;
 };
 
