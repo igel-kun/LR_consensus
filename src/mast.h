@@ -189,7 +189,7 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
         }
         for(unsigned int j = 0;j < nodes_Sis.size(); j++){
             int id_z = nodes_Sis[j]->getInfos().getStId();
-            MyNode * z = trees[1]->getNodeWithStId(id_vj);
+            MyNode * z = trees[1]->getNodeWithStId(id_z);
             int cp_father_z_in_T2 = trees[1]->getNodeWithStId(nodes_Sis[j]->getFather()->getInfos().getStId())->getInfos().getCentroidPathNumber();
             while((z->getInfos().getCentroidPathNumber() != cp_father_z_in_T2) && trees[1]->getNodeWithStId(corrNodesRootCentroidPaths[z->getInfos().getStId()])->hasFather()){
                 z= trees[1]->getNodeWithStId(corrNodesRootCentroidPaths[z->getInfos().getStId()])->getFather();
@@ -210,7 +210,7 @@ void mast(vector<MyTree *> trees, map<string,unsigned> association)
 			    boost::add_vertex(l, * Gxs[graph_to_add_edge_to]->getGraph());
 			    pair< int, bool > r(nodes_T2[j]->getInfos().getStId(), true); //get the node in Rx corresponding to nodes_T2[i]
 			    //auto v_y = boost::vertex_by_label(l, * Gxs[graph_to_add_edge_to]->getGraph()); //y is already in Gx
-                int weight =-1;
+                double weight =-1;
                 if(nodes_T2[j]->isLeaf() &&  nodes_T2[j]->getInfos().getCentroidPathNumber()==0){
                     weight=1; //nodes_T2[j] is vq
                 }
