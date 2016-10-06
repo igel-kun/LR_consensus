@@ -257,8 +257,10 @@ public:
     
     return new_leaf;
   }
+
   MyNode* graft_leaf_above(const StId node_id)
   {
+    return graft_leaf_above(correspondanceId[node_id]);
   }
 
 
