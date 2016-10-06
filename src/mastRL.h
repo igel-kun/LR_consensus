@@ -252,7 +252,13 @@ public:
     return CandidateIterator(*this, regraft_candidates_T0.end());
   }
 
-  MyTree* create_candidate_tree(const TreeEdge& uv) const { 
+  // create a new candidate tree from T0 by grafting x on the uv
+  MyTree* create_candidate_tree(const TreeEdge& uv) const {
+#warning TODO: can we skip this tree-copy and return a modified version of T0 instead?
+    MyTree* result = new MyTree(*T0);
+    const StId v_id = uv;
+    result->graft_leaf_above(v_id);
+    return result;
   }
 
 };
@@ -260,11 +266,6 @@ public:
 MyTree* CandidateIterator::operator->(){ 
   if(tree == NULL) tree = factory.create_candidate_tree(ParentClass::operator*());
   return tree;
-}
-
-
-CandidateFactory get_candidate_trees(const MyTree& T0, const MyTree& Ti, const StId x)
-{
 }
 
 
@@ -300,7 +301,7 @@ MyTree* mastRL(MyTree& T0,
 
   // step 3: enumerate all first (LPR-) steps on the way from T0 to a solution and recurse for each of them
   for(const StId& x: kernel)
-    for(MyTree& candidate: get_candidate_trees(T0, distant_tree, x)){
+    for(MyTree& candidate: CandidateFactory(T0, distant_tree, x, max_dist, max_moves_in_T0)){
 #warning TODO: cache-check here if we've already seen this candidate with at least this distance
       MyTree* solution = mastRL(candidate, trees, max_dist, max_moves_in_T0 - 1);
       if(solution != NULL) return solution;

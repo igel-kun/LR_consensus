@@ -232,7 +232,36 @@ public:
   {
     operator-=(node->getInfos().getStId());
   }
-  
+
+  // graft a new leaf above the given node and return a pointer to it
+  MyNode* graft_leaf_above(MyNode* node)
+  {
+    assert(node->hasFather()); // can't graft above the root
+    MyNode* old_parent = node->getFather();
+
+    // create the leaf and its parent
+    MyNode* new_parent = new MyNode();
+    setNewStId(new_parent);
+    
+    MyNode* new_leaf = new MyNode();
+    setNewStId(new_leaf);
+
+    // remove the edge we're grafting on
+    old_parent->removeSon(node);
+    node->removeFather();
+
+    // and add the 3 new edges
+    old_parent->addSon(new_parent);
+    new_parent->addSon(node);
+    new_parent->addSon(new_leaf);
+    
+    return new_leaf;
+  }
+  MyNode* graft_leaf_above(const StId node_id)
+  {
+  }
+
+
   unsigned getCorrespondanceLenghtId(){
  		return correspondanceId.size();
  	}
