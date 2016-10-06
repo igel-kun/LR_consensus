@@ -35,6 +35,11 @@ struct Clade: public pair<unsigned, unsigned>
     assert(first == second);
     return first;
   }
+  unsigned size() const
+  {
+    assert(second >= first);
+    return (second - first) + 1;
+  }
 };
 
 class NodeInfos  {

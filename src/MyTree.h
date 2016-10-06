@@ -53,20 +53,25 @@ struct _ChildIterator{
 using ChildIterator = _ChildIterator<MyNode>;
 using ChildConstIterator = _ChildIterator<const MyNode>;
 // once Bio++ comes to its sences, replace this by a const vector<NodeTemplate<NodeInfos>*>
-template<class NodeType>
-struct _Children{
-  NodeType& node;
+struct ConstChildren{
+  const MyNode& node;
   const size_t _size;
 
-  _Children(NodeType& _node, const size_t _max): node(_node), _size(_max)   {}
-  ChildConstIterator cbegin() const { return ChildConstIterator(node); }
-  ChildIterator begin() const { return ChildIterator(node); }
-  ChildConstIterator cend() const { return ChildConstIterator(node, _size); }
-  ChildIterator end() const { return ChildIterator(node, _size); }
+  ConstChildren(const MyNode& _node, const size_t _max): node(_node), _size(_max)   {}
+  ChildConstIterator begin() const { return ChildConstIterator(node); }
+  ChildConstIterator end() const { return ChildConstIterator(node, _size); }
   size_t size() const {return _size; }
 };
-using Children = _Children<MyNode>;
-using ConstChildren = _Children<const MyNode>;
+struct Children{
+  MyNode& node;
+  const size_t _size;
+
+  Children(MyNode& _node, const size_t _max): node(_node), _size(_max)   {}
+  ChildIterator begin() { return ChildIterator(node); }
+  ChildIterator end() { return ChildIterator(node, _size); }
+  size_t size() const {return _size; }
+};
+
 
 
 // a comparator comparing nodes according to their depth DepthCompare<false>(u,v) <=> u has a smaller depth than v
@@ -91,52 +96,69 @@ protected:
 
 	//vector< unsigned > centroidPaths ;
 
-  //! copy the StIds of the nodes in t, assuming we are a copy of the tree t
-  /** name_to_leaf should associate leaf names to the leaves in t **/
-  void copy_stids_from_leaf_names(const MyTree& t, MyNode& root, const unordered_map<string, const MyNode*>& name_to_leaf)
+  //! copy the StIds of the nodes in T, assuming we are a supertree of T
+  /** Here, "supertree" is in the phylogenetic sense (that is, modulo degree-2 nodes)
+   * The return value is the new StId of "root", unless exactly one subtree of "root" in our tree is represented in T, in which case the StId of the root of this subtree is returned. This allows skipping over indeg-1 & outdeg-1 nodes
+   * name_to_leaf should associate leaf names to the leaves in T **/
+  StId sync_stids_from_leaf_names(const MyTree& T, MyNode& root, const unordered_map<string, const MyNode*>& name_to_leaf)
   {
-    const MyNode* node_in_t = name_to_leaf.at(root.getName());
+    StId my_stid;
     if(root.isLeaf()){
-      const StId stid = node_in_t->getInfos().getStId();
-      root.getInfos().setStId(stid);
-      correspondanceId[stid] = &root;
-      if(root.hasFather()){
-        MyNode* father = root.getFather();
-        const MyNode* father_in_t = node_in_t->getFather();
-        const StId father_stid = father_in_t->getInfos().getStId();
-        father->getInfos().setStId(father_stid);
-        correspondanceId[father_stid] = father;
+      const auto node_iter = name_to_leaf.find(root.getName());
+      if(node_iter == name_to_leaf.end()){
+        // if this leaf does not exist in T, create a new StId at the end of correspondanceId
+        return setNewStId(&root);
+      } else my_stid = node_iter->second->getInfos().getStId();
+    } else{
+      // get the children of root that are represented in T
+      vector<MyNode*> childs_in_T;
+      childs_in_T.reserve(root.getNumberOfSons());
+      for(auto& child: get_children(root)){
+        const StId child_id = sync_stids_from_leaf_names(T, child, name_to_leaf);
+        // if the child is represented in T
+        if(child_id < T.correspondanceId.size()) childs_in_T.push_back(T.correspondanceId.at(child_id));
       }
-    } else {
-      for(auto& child: get_children(root)) 
-        copy_stids_from_leaf_names(t, child, name_to_leaf);
-      if(root.hasFather()){
-        MyNode* father = root.getFather();
-        const MyNode* father_in_t = node_in_t->getFather();
-        const StId father_stid = father_in_t->getInfos().getStId();
-        father->getInfos().setStId(father_stid);
-        correspondanceId[father_stid] = father;
+      switch(childs_in_T.size()){
+        case 0:
+          // if no child is represnted in T, then set a new StId and return it
+          return setNewStId(&root);
+        case 1:
+          // if only one child is represented in T, then set a new StId, but return this childs StId; this skips over degree-2-paths
+          setNewStId(&root);
+          return childs_in_T.front()->getInfos().getStId();
+        default:
+          // if at least two children are represented in T, copy the StId of their father in T
+          my_stid = childs_in_T.front()->getFather()->getInfos().getStId();
       }
     }
+    root.getInfos().setStId(my_stid);
+    correspondanceId[my_stid] = &root;
+    return my_stid;
   }
 
 public:
  	MyTree(): TreeTemplate<MyNode>(){}
  	MyTree(MyNode& root): TreeTemplate<MyNode>(&root) {}
- 	
+
+  //! copy StIds from T, assuming that the set of leaf-labels of T is a subset of ours
+  /** NOTE: if the topoly of T differs from our own, the behavior is undefined **/
+  void sync_stids_from(const MyTree& T)
+  {
+    // step 1: associate leaves
+    unordered_map<string, const MyNode*> name_to_leaf;
+    for(const auto& T_leaf: T.getLeaves()) name_to_leaf.emplace(T_leaf->getName(), T_leaf);
+
+    // copy the StIds bottom-up from the corresponding leaves
+    correspondanceId.resize(T.correspondanceId.size());
+    sync_stids_from_leaf_names(T, *getRootNode(), name_to_leaf);
+  }
+
   //! copy the given tree and synchronize StIds, setting-up correspondanceId
-  MyTree(const MyTree& t): TreeTemplate<MyNode>(t) 
+  MyTree(const MyTree& T): TreeTemplate<MyNode>(T)
   {
     // we like to use Bpp's TreeTemplate cppy constructor, but it doesn't copy infos because... reasons
     // so we have to associate the leaves using their names (which ARE copied) and then copy StIds bottom-up
-
-    // step 1: associate leaves
-    unordered_map<string, const MyNode*> name_to_leaf;
-    for(const auto& t_leaf: t.getLeaves()) name_to_leaf.emplace(t_leaf->getName(), t_leaf);
-
-    // copy the StIds bottom-up from the corresponding leaves
-    correspondanceId.resize(t.correspondanceId.size());
-    copy_stids_from_leaf_names(t, *getRootNode(), name_to_leaf);
+    sync_stids_from(T);
   }
 
  	virtual ~MyTree(){
@@ -156,6 +178,27 @@ public:
   Children get_children(MyNode& node) const
   {
     return Children(node, node.getNumberOfSons());
+  }
+  Children get_children(const StId& id) const
+  {
+    return get_children(*correspondanceId[id]);
+  }
+
+
+  // return a copy of us that misses the vertex with the given StId
+  MyTree* operator-(const StId x) const 
+  {
+    MyTree* result = new MyTree(*this);
+    *result -= x;
+    return result;
+  }
+
+  // return a copy of us that misses the vertex with the given StId
+  MyTree* operator-(const MyNode* x) const 
+  {
+    MyTree* result = new MyTree(*this);
+    *result -= x;
+    return result;
   }
 
   // delete node from the tree
@@ -205,6 +248,14 @@ public:
 	void setNodeWithStId(MyNode* node, unsigned stId) {
 	 	correspondanceId[stId] = node;
 	}
+
+  //! give a previously unused StId (at the end of correspondanceId) to the node
+  StId setNewStId(MyNode* node){
+    const StId my_stid = correspondanceId.size();
+    node->getInfos().setStId(my_stid);
+    correspondanceId.push_back(node);
+    return my_stid;
+  }
 
   void setup_StIds_subtree(MyNode* subtree_root, unsigned& offset){
     subtree_root->getInfos().setStId(offset);
