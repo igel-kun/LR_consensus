@@ -10,6 +10,19 @@
 #include "MultiGraph.h"
 #include "mast.h"
 
+// abbreviations to increase readability
+#define clade(x) (x)->getInfos().getClade()
+#define stid(x) (x)->getInfos().getStId()
+
+
+// we represent Edges as the StId of the lower vertex
+typedef StId TreeEdge;
+
+// forward declaration of the factory
+class CandidateFactory;
+
+
+
 unsigned mast(const MyTree& T0, const MyTree& T1)
 {
 }
@@ -18,54 +31,58 @@ vector<StId> mast_solution(const MyTree& T0, const MyTree& T1)
 {
 }
 
+
 //! find all highest descendants of x such that   max_size >= |clade(x)| >= min_size 
 void large_clade_nodes_below(const MyTree& T, const MyNode* x, const unsigned min_size, const unsigned max_size, set<StId>& result)
 {
-  const unsigned x_clade_size = x->getInfos().getClade().size();
+  const unsigned x_clade_size = clade(x).size();
   if(x_clade_size >= min_size){
     if(x_clade_size <= max_size)
-      result.insert(x->getInfos().getStId());
+      result.insert(stid(x));
     else
       for(const auto& child: T.get_children(*x))
         large_clade_nodes_below(T, &child, min_size, max_size, result);
   }
 }
 
-//! compute information that limits where x can be regrafted onto Ti - Xm (which contains x)
+//! find all highest descendants of x such that   max_size >= |clade(x)| >= min_size 
+const MyNode* large_clade_node_above(const MyNode* x, const unsigned min_size)
+{
+  while(clade(x).size() < min_size) x = x->getFather();
+  return x;
+}
+
+
+//! compute information that limits where x can be regrafted onto T0 - Xm using information of Ti - Xm (which contains x)
 //NOTE: this assumes that clades have been set up!
 pair<StId, set<StId> > location_restriction(const MyTree& Ti_minus_Xm,
-                                            const MyNode* x,
+                                            const MyNode* const x,
                                             const unsigned max_dist_and_moves)
 {
   set<StId> Z;
   // step 1: walk upwards from x until we have a big enough clade
-  const MyNode* z = x;
-  unsigned z_clade_size;
-  // sorry for assignment-operator comparison causing dense code...
-  while((z_clade_size = z->getInfos().getClade().size()) < max_dist_and_moves + 1) z = z->getFather();
-  // step 2: walk upwards from z until we have a big enough clade
-  const MyNode* y = z->getFather();
-  while(y->getInfos().getClade().size() < max_dist_and_moves + z_clade_size) y = y->getFather();
+  const MyNode* const z = large_clade_node_above(x, max_dist_and_moves + 1);
+  const unsigned z_clade_size = clade(z).size();
+  const MyNode* const y = large_clade_node_above(z->getFather(), max_dist_and_moves + z_clade_size);
 
   // get the child of z that is not ancestor of x (whose clade does not contain x's clade)
   const MyNode* z2 = z->getSon(0);
-  if(z2->getInfos().getClade().contains(x->getInfos().getClade())) z2 = z->getSon(1);
-  const Clade z2_clade = z2->getInfos().getClade();
+  if(clade(z2).contains(clade(x))) z2 = z->getSon(1);
+  const Clade z2_clade = clade(z2);
+
   // get the vertices z' below z2 such that clade(z') is large and clade(z2)\clade(z') is large
   large_clade_nodes_below(Ti_minus_Xm, z2, max_dist_and_moves, max_dist_and_moves + z2_clade.size(), Z);
 
   // get the child of y that is not ancestor of x (whose clade does not contain x's clade)
   const MyNode* y2 = y->getSon(0);
-  if(y2->getInfos().getClade().contains(x->getInfos().getClade())) y2 = y->getSon(1);
-  const Clade y2_clade = y2->getInfos().getClade();
+  if(clade(y2).contains(clade(x))) y2 = y->getSon(1);
+  const Clade y2_clade = clade(y2);
   // get the vertices y' below y2 such that clade(y') is large and clade(y2)\clade(y') is large
   large_clade_nodes_below(Ti_minus_Xm, y2, max_dist_and_moves, max_dist_and_moves + y2_clade.size(), Z);
 
-  return make_pair(y->getInfos().getStId(), Z);
+  return make_pair(stid(y), Z);
 }
 
-// we represent Edges as the StId of the lower vertex
-typedef StId TreeEdge;
 
 // get all edges below y but avoid diving into subtrees rooted at Z
 //NOTE: this will also add the edge above y at the very end of the vector!
@@ -74,11 +91,12 @@ void get_all_below_y_avoiding_Z(const MyTree& T, const StId y, const set<StId>& 
   if(Z.find(y) == Z.end()){
     // step 1: put all edges under y
     for(const auto& child: T.get_children(y))
-      get_all_below_y_avoiding_Z(T, child.getInfos().getStId(), Z, result);
+      get_all_below_y_avoiding_Z(T, stid(&child), Z, result);
   }
   // step 2: put the edge above y
   result.push_back(y);
 }
+
 
 // collect all StIds in T going upwards from x, until y is reached or we reach a vertex that is already in the set, do not add y
 //NOTE: this assumes that y lies above x in T
@@ -89,11 +107,12 @@ void collect_upwards(const MyTree& T, StId x, const StId y, set<StId>& result)
     if(!result.insert(x).second) return;
     const MyNode* x_node = T.getNodeWithStId(x);
     assert(x_node->hasFather());
-    x = x_node->getFather()->getInfos().getStId();
+    x = stid(x_node->getFather());
   }
 }
 
-// translate a set of regraft candidates in Tm := T0 - Xm to a set of regraft candidates in T0
+
+//! translate a set of regraft candidates in Tm := T0 - Xm to a set of regraft candidates in T0
 void translate_regraft_candidates(const vector<TreeEdge>& Tm_candidates,
                                   set<TreeEdge>& T0_candidates,
                                   const MyTree& Tm,
@@ -103,7 +122,7 @@ void translate_regraft_candidates(const vector<TreeEdge>& Tm_candidates,
   T0_candidates.clear();
   for(const TreeEdge& uv: Tm_candidates){
     const StId v_id = uv; // remember that uv is represented by v's StId
-    const StId u_id = Tm.getNodeWithStId(v_id)->getFather()->getInfos().getStId();
+    const StId u_id = stid(Tm.getNodeWithStId(v_id)->getFather());
     // get u & v in T0
     const MyNode* u0 = T0.getNodeWithStId(u_id);
     // get the edges between u & v in T0
@@ -119,8 +138,7 @@ void translate_regraft_candidates(const vector<TreeEdge>& Tm_candidates,
   }
 }
 
-// forward declaration of the factory
-class CandidateFactory;
+
 
 //! an iterator produced by a CandidateFactory to allow iterating over candidates produced by the factory
 class CandidateIterator: public set<TreeEdge>::iterator
@@ -177,6 +195,7 @@ public:
   }
 
 };
+
 
 //! a factory producing candidate trees
 /** given a tree T0, a tree Ti, and a leaf x contained in both, try multiple regrafts of x in T0
@@ -262,6 +281,7 @@ public:
   }
 
 };
+
 
 MyTree* CandidateIterator::operator->(){ 
   if(tree == NULL) tree = factory.create_candidate_tree(ParentClass::operator*());
