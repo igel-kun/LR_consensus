@@ -123,13 +123,12 @@ public:
   }
 };
 
+typedef pair<unsigned, TraceItem> TracableEntry;
 class DPTable: public _DPTable<unsigned>{
   using _DPTable<unsigned>::_DPTable;
   virtual unsigned score(const unsigned& e) const { return e; }
   virtual unsigned construct_entry(const unsigned score, const TraceItem& trace) const { return score; }
 };
-
-typedef pair<unsigned, TraceItem> TracableEntry;
 class TracableDPTable: public _DPTable<TracableEntry>{
   using _DPTable<TracableEntry>::_DPTable;
   virtual unsigned score(const TracableEntry& e) const { return e.first; }

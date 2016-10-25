@@ -215,7 +215,9 @@ class CandidateFactory
   {    
     list<StId> mast_list;
     MyTree* Ti_minus_x = *Ti - x;
-    mast(T0, nodes_T0, Ti_minus_x, &mast_list);
+    vector<MyNode*> nodes_Ti_minus_x;
+    Ti_minus_x->setup_node_infos(false, &nodes_Ti_minus_x);
+    mast(*T0, nodes_T0, *Ti_minus_x, nodes_Ti_minus_x, &mast_list);
     //NOTE: mast()s response is the leaves of a mast in post-order of T0
     delete Ti_minus_x;
     //cout << "2-mast: "<<mast_list<<" in "<<endl;
@@ -303,6 +305,7 @@ public:
 
 //    for(unsigned i = 0; i < T0->num_leaves()-1; ++i) cout << "LCA("<<stid(T0->leaf_by_po_num(i))<<"["<<T0->leaf_by_po_num(i)->getId()<<"], "<<stid(T0->leaf_by_po_num(i+1))<<"["<<T0->leaf_by_po_num(i+1)->getId()<<"]) = "<<stid(T0->getLCA(T0->leaf_by_po_num(i), T0->leaf_by_po_num(i+1)))<<"["<<T0->getLCA(T0->leaf_by_po_num(i), T0->leaf_by_po_num(i+1))->getId()<<"]"<<endl;
     init();
+    // cout << "produced candidates: "<<regraft_candidates_T0<<endl;
   }
 
   ~CandidateFactory()
@@ -334,12 +337,18 @@ public:
     const StId v_id = uv;
     MyNode* const new_x = result->graft_leaf_above(v_id);
     new_x->setName(x_name);
+    result->assign_StId(new_x, x);
+    result->consolidate_StIds();
     //cout << "new tree:"<<endl;
     //result->pretty_print(cout, true);
 
     return result;
   }
 
+  size_t size() const
+  {
+    return regraft_candidates_T0.size();
+  }
 };
 
 
@@ -356,6 +365,7 @@ MyTree* CandidateIterator::operator->(){
  **/
 MyTree* mastRL(MyTree& T0,
                const vector<MyTree*>& trees,
+               const vector<vector<MyNode*> >& nodes_PO,
                const unsigned max_dist,
                const unsigned max_moves_in_T0)
 {
@@ -366,22 +376,25 @@ MyTree* mastRL(MyTree& T0,
   T0.setup_node_infos(false, &nodes_T0);
   const unsigned T0_leaves = T0.num_leaves();
 
-  //cout << "we've got "<<trees.size()<<" trees. Checking candidate"<<endl;
+  //cout << "Checking candidate"<<endl;
   //T0.pretty_print();
   //cout << "with "<<nodes_T0.size()<<" nodes"<<endl;
 
   for(unsigned i = 0; i < trees.size(); ++i){
-    const unsigned dist = T0_leaves - mast(&T0, nodes_T0, trees[i]);
+    //cout << "mast against"<<endl;
+    //trees[i]->pretty_print();
+    const unsigned dist = T0_leaves - mast(T0, nodes_T0, *trees[i], nodes_PO[i]);
     if(dist > max_dist_to_T0){
       max_dist_index = i;
       max_dist_to_T0 = dist;
+
+      // if any tree is too far from T1, return failure
+      if(max_dist_to_T0 > max_dist + max_moves_in_T0) return NULL;
     }
   }
   //cout << "distant tree has index "<<max_dist_index<<" and distance "<<max_dist_to_T0<<"; we've got "<<max_dist<<" max dist and "<<max_moves_in_T0<<" moves left"<<endl;
   // if all trees are close to T1, then return a copy of T1 as solution
   if(max_dist_to_T0 <= max_dist) return new MyTree(T0);
-  // if any tree is too far from T1, return failure
-  if(max_dist_to_T0 > max_dist + max_moves_in_T0) return NULL;
   // otherwise, go on with a tree that is furthest from T1
   MyTree& distant_tree = *trees[max_dist_index];
 
@@ -393,18 +406,39 @@ MyTree* mastRL(MyTree& T0,
   const set<StId> kernel = disagreement_kernel(T0, distant_tree, max_dist);
 
   // step 3: enumerate all first (LPR-) steps on the way from T0 to a solution and recurse for each of them
-  //cout << "---> kernel: " << kernel <<endl;
-  for(const StId& x: kernel)
-    for(MyTree& candidate: CandidateFactory(T0, distant_tree, x, max_dist, max_moves_in_T0)){
-      //cout << "===== current candidate: ====="<<endl;
+  //cout << "---- level: "<<max_moves_in_T0<<" ---> kernel: " << kernel <<endl;
+  for(const StId& x: kernel){
+    const CandidateFactory fac(T0, distant_tree, x, max_dist, max_moves_in_T0);
+    //cout << "===== LEVEL: "<<max_moves_in_T0<<" ==== kernel leaf: "<< x<<" ====== "<<fac.size()<<" candidates ====="<<endl;
+    for(MyTree& candidate: fac){
+      //cout << "candidate: "<<endl;
       //candidate.pretty_print();
 #warning TODO: cache-check here if we have already seen this candidate with at least this distance
-      MyTree* solution = mastRL(candidate, trees, max_dist, max_moves_in_T0 - 1);
-      if(solution != NULL) return solution;
+      MyTree* solution = mastRL(candidate, trees, nodes_PO, max_dist, max_moves_in_T0 - 1);
+      if(solution != NULL) {
+        //cout << "found a solution!"<<endl;
+        return solution;
+      } else;// cout << "no solution"<<endl;
     }
+  }
 
   return NULL;
 }
+
+MyTree* mastRL(MyTree& T0,
+               const vector<MyTree*>& trees,
+               const unsigned max_dist,
+               const unsigned max_moves_in_T0)
+{
+  vector<vector<MyNode*> > nodes_PO;
+  for(const auto& t: trees){
+    nodes_PO.push_back(vector<MyNode*>());
+    vector<MyNode*>& current = nodes_PO.back();
+    for(auto& u: t->postorder_traversal()) current.push_back(&u);
+  }
+  return mastRL(T0, trees, nodes_PO, max_dist, max_moves_in_T0);
+}
+
 
 // why does gcc not let me set the "local variable" max_dist as default for max_moves? This declaration below can be easily automated...
 MyTree* mastRL(MyTree& T0,

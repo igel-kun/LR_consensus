@@ -214,6 +214,28 @@ public:
     if(delete_asso) delete name_to_leaf;
   }
 
+  //! give a specific StId to a specific node. This might mean that we have to swap with someone
+  void assign_StId(MyNode* const leaf, const StId stid_want)
+  {
+    const StId stid_have = stid(leaf);
+    if(stid_want != stid_have){
+      //cout << "swapping stid("<<leaf->getName()<<")="<<stid_have<<" with "<<stid_want<<" (parent stid "<<stid(name_to_leaf->at(leaf->getName())->getFather())<<"), storage size is "<<StId_to_node.size()<<endl;
+      // make sure there's enough room in the StId_to_node vector
+      if(StId_to_node.size() > stid_want) {
+        MyNode* swap_target = StId_to_node[stid_want];
+        if(swap_target && (stid(swap_target) == stid_want)){
+          stid(swap_target) = stid_have;
+          StId_to_node[stid_have] = swap_target;
+        }
+      } else {
+        StId_to_node.resize(stid_want + 1);
+        StId_to_node[stid_have] = NULL;
+      }
+      StId_to_node[stid_want] = leaf;
+      stid(leaf) = stid_want;
+    }
+  }
+
   //! setup StIds such that all leaves with the same label have the same StIds; all other StIds are (more or less) random
   void sync_leaf_stids(const MyTree& T, LeafAssociation* name_to_leaf = NULL)
   {
@@ -224,30 +246,36 @@ public:
     }
 
     // for each leaf, switch the StId's of that leaf and the node with the StId that we want
-    for(MyNode* leaf: getLeaves()){
-      const StId stid_want = stid(name_to_leaf->at(leaf->getName()));
-      const StId stid_have = stid(leaf);
-      
-      if(stid_want != stid_have){
-        //cout << "swapping stid("<<leaf->getName()<<")="<<stid_have<<" with "<<stid_want<<" (parent stid "<<stid(name_to_leaf->at(leaf->getName())->getFather())<<"), storage size is "<<StId_to_node.size()<<endl;
-        // make sure there's enough room in the StId_to_node vector
-        if(StId_to_node.size() > stid_want) {
-          MyNode* swap_target = StId_to_node[stid_want];
-          if(swap_target && (stid(swap_target) == stid_want)){
-            stid(swap_target) = stid_have;
-            StId_to_node[stid_have] = swap_target;
-          }
-        } else {
-          StId_to_node.resize(stid_want + 1);
-          StId_to_node[stid_have] = NULL;
-        }
-        StId_to_node[stid_want] = leaf;
-        stid(leaf) = stid_want;
-      }
-    }
+    for(MyNode* leaf: getLeaves()) assign_StId(leaf, stid(name_to_leaf->at(leaf->getName())));
 
     if(delete_association) delete name_to_leaf;
   }
+
+  //! consolidate StIds such that the tree uses consequtive StIds
+  //NOTE: if dont_touch_leaves is set, the leaf StIds will remain in tact. In this case, the StIds might not be consolidated
+  void consolidate_StIds(const bool dont_touch_leaves = true)
+  {
+    bool seen_leaf = false;
+    StId first = 0;
+    while(StId_to_node.back() == NULL) StId_to_node.pop_back();
+    StId last = StId_to_node.size() - 1;
+    while(first < last){
+      while((StId_to_node[first] != NULL) && (first < StId_to_node.size())) ++first;
+      if(first < StId_to_node.size()) {
+        // at this point, first points to the first NULL element, and last to the last non-NULL element
+        MyNode* const u = StId_to_node[last];
+        if(dont_touch_leaves && u->isLeaf()){
+          seen_leaf = true;
+          --last;
+        } else assign_StId(u, first);
+      } else return; // if all other StIds are given, we can savely return
+      if(!seen_leaf)
+        while(StId_to_node.back() == NULL) { StId_to_node.pop_back(); --last; }
+      else
+        while((StId_to_node[last] == NULL) && (last > 0)) --last;
+    }// while first < last
+  }
+
   
   ConstChildren get_children_by_StId(const StId& id) const
   {
@@ -485,6 +513,10 @@ public:
       lca_oracle = new LCA_Oracle(*getRootNode(), StId_to_node.size(), access_Id(), access_children());
     }
     return this;
+  }
+  bool is_lca_preprocessed() const
+  {
+    return (lca_oracle != NULL);
   }
 
   const MyNode* getLCA(const MyNode& u, const MyNode& v) const
@@ -724,8 +756,6 @@ void collapseEdge(MyTree & tree, MyNode * on) {
 };
 
 /* this function reads a list of trees written in a file (path) in a newich format, separed by semicolons and returns a list of MyTree*/
-
-
 vector < MyTree *>  readTrees(const string & path) throw (Exception) {
     // Checking the existence of specified file
     
@@ -742,7 +772,7 @@ vector < MyTree *>  readTrees(const string & path) throw (Exception) {
             if(index == string::npos) throw Exception("readTrees(). Bad format: no semi-colon found.");
             if(index < temp.size()) {
                 description += temp.substr(0, index + 1);   
-                TreeTemplate<Node> * tree = TreeTemplateTools::parenthesisToTree(description,true);    
+                TreeTemplate<Node> * tree = TreeTemplateTools::parenthesisToTree(description,true);
                 trees.push_back(new MyTree((MyNode*)(tree->getRootNode())));
                 delete tree;
                 description = temp.substr(index);   
