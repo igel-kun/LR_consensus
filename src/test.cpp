@@ -103,14 +103,16 @@ int main(int argc, char** argv){
 
   MyTree* mRL = mastRL(*t, trees, d);
 
-  cout << "consensus: "<<endl;
+  //cout << "consensus: "<<endl;
   //if(mRL) mRL->pretty_print(); else cout << " none"<<endl;
   
   if(mRL) {
+    cout << " OK"<<endl;
 	Newick newick;
   	newick.write(* mRL, outputPath, true);
 }
-  
+else
+    cout << " none"<<endl;
 
   return 0;
 }
