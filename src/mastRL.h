@@ -202,7 +202,6 @@ public:
 class CandidateFactory
 {
   MyTree* T0;
-  vector<MyNode*> nodes_T0;
 
   const MyTree* const Ti;
   const StId x;
@@ -215,9 +214,8 @@ class CandidateFactory
   {    
     list<StId> mast_list;
     MyTree* Ti_minus_x = *Ti - x;
-    vector<MyNode*> nodes_Ti_minus_x;
-    Ti_minus_x->setup_node_infos(false, &nodes_Ti_minus_x);
-    mast(*T0, nodes_T0, *Ti_minus_x, nodes_Ti_minus_x, &mast_list);
+    Ti_minus_x->setup_node_infos(false);
+    mast(*T0, *Ti_minus_x, &mast_list);
     //NOTE: mast()s response is the leaves of a mast in post-order of T0
     delete Ti_minus_x;
     //cout << "2-mast: "<<mast_list<<" in "<<endl;
@@ -300,7 +298,7 @@ public:
     //_Ti.pretty_print();
     //cout << "("<<_Ti.num_stids()<<" stids)"<<endl;
     
-    T0->setup_node_infos(false, &nodes_T0);
+    T0->setup_node_infos(false);
     T0->lca_preprocess();
 
 //    for(unsigned i = 0; i < T0->num_leaves()-1; ++i) cout << "LCA("<<stid(T0->leaf_by_po_num(i))<<"["<<T0->leaf_by_po_num(i)->getId()<<"], "<<stid(T0->leaf_by_po_num(i+1))<<"["<<T0->leaf_by_po_num(i+1)->getId()<<"]) = "<<stid(T0->getLCA(T0->leaf_by_po_num(i), T0->leaf_by_po_num(i+1)))<<"["<<T0->getLCA(T0->leaf_by_po_num(i), T0->leaf_by_po_num(i+1))->getId()<<"]"<<endl;
@@ -365,25 +363,24 @@ MyTree* CandidateIterator::operator->(){
  **/
 MyTree* mastRL(MyTree& T0,
                const vector<MyTree*>& trees,
-               const vector<vector<MyNode*> >& nodes_PO,
                const unsigned max_dist,
                const unsigned max_moves_in_T0)
 {
   // step 1: get a tree Ti at maximal distance to T0
   unsigned max_dist_index = 0;
   unsigned max_dist_to_T0 = 0;
-  vector<MyNode*> nodes_T0;
-  T0.setup_node_infos(false, &nodes_T0);
+  T0.setup_node_infos(false);
   const unsigned T0_leaves = T0.num_leaves();
 
   //cout << "Checking candidate"<<endl;
   //T0.pretty_print();
-  //cout << "with "<<nodes_T0.size()<<" nodes"<<endl;
+  //cout << "with "<<T0.num_nodes()<<" nodes"<<endl;
 
   for(unsigned i = 0; i < trees.size(); ++i){
+    assert(trees[i]->node_infos_set_up());
     //cout << "mast against"<<endl;
     //trees[i]->pretty_print();
-    const unsigned dist = T0_leaves - mast(T0, nodes_T0, *trees[i], nodes_PO[i]);
+    const unsigned dist = T0_leaves - mast(T0, *trees[i]);
     if(dist > max_dist_to_T0){
       max_dist_index = i;
       max_dist_to_T0 = dist;
@@ -414,7 +411,7 @@ MyTree* mastRL(MyTree& T0,
       //cout << "candidate: "<<endl;
       //candidate.pretty_print();
 #warning TODO: cache-check here if we have already seen this candidate with at least this distance
-      MyTree* solution = mastRL(candidate, trees, nodes_PO, max_dist, max_moves_in_T0 - 1);
+      MyTree* solution = mastRL(candidate, trees, max_dist, max_moves_in_T0 - 1);
       if(solution != NULL) {
         //cout << "found a solution!"<<endl;
         return solution;
@@ -423,20 +420,6 @@ MyTree* mastRL(MyTree& T0,
   }
 
   return NULL;
-}
-
-MyTree* mastRL(MyTree& T0,
-               const vector<MyTree*>& trees,
-               const unsigned max_dist,
-               const unsigned max_moves_in_T0)
-{
-  vector<vector<MyNode*> > nodes_PO;
-  for(const auto& t: trees){
-    nodes_PO.push_back(vector<MyNode*>());
-    vector<MyNode*>& current = nodes_PO.back();
-    for(auto& u: t->postorder_traversal()) current.push_back(&u);
-  }
-  return mastRL(T0, trees, nodes_PO, max_dist, max_moves_in_T0);
 }
 
 

@@ -113,7 +113,8 @@ class MyTree: public TreeTemplate<MyNode>
 protected:
 	vector<MyNode*> StId_to_node;
 	vector<MyNode*> leaves_po;
-  vector<CentroidPath> centroid_paths;
+  vector<MyNode*> nodes_po;
+  //vector<CentroidPath> centroid_paths;
 
 	//vector< unsigned > centroidPaths ;
 
@@ -389,26 +390,22 @@ public:
   //! setup traversal numbers, subtree sizes, and StIds
   // if requested, returns the vertices in post order; in any case, return our tree to enable chaining preprocessings
   //NOTE: unset change_StIds to keep StIds in tact
-  template<class Container = vector<MyNode*> >
-  MyTree* setup_node_infos(const bool change_StIds = true, Container* result = NULL)
+  MyTree* setup_node_infos(const bool change_StIds = true)
   {
-    unsigned count = 0;
     PostOrderTraversal po = postorder_traversal();
     leaves_po.clear();
+    nodes_po.clear();
     if(change_StIds) StId_to_node.clear();
 
     for(auto u_iter = po.begin(); u_iter.is_valid(); ++u_iter){
       MyNode& u = *u_iter;
       NodeInfos& u_info = u.getInfos();
-
-      if(change_StIds) {
-        u_info.stId = count;
-        StId_to_node.push_back(&u);
-      }
       u_info.subtree_size = 1;
       u_info.depth = u_iter.current_depth();
-      u_info.po_num = count;
+      u_info.po_num = nodes_po.size();
+      nodes_po.push_back(&u);
 
+      if(change_StIds) setNewStId(&u);
       if(u.isLeaf()){
         u_info.clade = Clade(leaves_po.size());
   		  leaves_po.push_back(&u);
@@ -416,19 +413,20 @@ public:
         u_info.clade = u.getSon(0)->getInfos().clade;
         for(const MyNode& v: get_children(u)){
           u_info.clade = get_spanning_clade(u_info.clade, v.getInfos().clade);
-          u_info.subtree_size += v.getInfos().subtree_size + 1;
+          u_info.subtree_size += v.getInfos().subtree_size;
         }
       }
-
-      ++count;
-      if(result) result->push_back(&u);
     }
+    //cout << "done setting up "<<nodes_po.size()<<" nodes"<<endl;
     return this;
   }
 
   bool node_infos_set_up() const
   {
-    return !StId_to_node.empty();
+    //cout << leaves_po.size() << " leaves "<<nodes_po.size()<<" nodes"<<endl;
+    if(leaves_po.empty()) return false;
+    //cout << "root-po: "<<getRootNode()->getInfos().po_num<<" root-subtree: "<<getRootNode()->getInfos().subtree_size<<endl;
+    return (getRootNode()->getInfos().po_num + 1 == getRootNode()->getInfos().subtree_size);
   }
 
 
@@ -449,6 +447,11 @@ public:
   MyNode* leaf_by_po_num(const unsigned po_num) const
   {
     return leaves_po[po_num];
+  }
+
+  MyNode* node_by_po_num(const unsigned po_num) const
+  {
+    return nodes_po[po_num];
   }
 
 	//not used for now
@@ -673,7 +676,7 @@ public:
   }	
 
 
-
+/*
   //============================ centroid paths =============================
   //construct the centroid decomposition of a tree
 	void getCentroidDecompostion(MyNode& node, unsigned partition_number, const bool is_root_of_path = true) {
@@ -719,7 +722,7 @@ public:
   { 
     return centroid_paths[node->getInfos().cp_num].get_root();
   }
-
+*/
 
 };
 

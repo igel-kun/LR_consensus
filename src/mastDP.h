@@ -41,7 +41,8 @@ class _DPTable: public vector2d<Entry>
   virtual unsigned score(const Entry& e) const = 0;
   virtual Entry construct_entry(const unsigned score, const TraceItem& trace) const = 0;
 
-  unsigned score(const unsigned i, const unsigned j) const {
+  unsigned score(const unsigned i, const unsigned j) const
+  {
     return score(operator[]({i,j})); 
   }
 
@@ -104,83 +105,85 @@ public:
 
   using vector2d<Entry>::operator[];
 
-  _DPTable(const unsigned cols, const unsigned rows, const MyTree& _T1, const MyTree& _T2):
-    vector2d<Entry>(cols, rows),
+  _DPTable(const MyTree& _T1, const MyTree& _T2):
+    vector2d<Entry>(_T1.num_nodes(), _T2.num_nodes()),
     T1(_T1), T2(_T2)
-  {}
+  {
+    assert(T1.node_infos_set_up()); // check that the postorder numbers of T1 have been set up
+    assert(T2.node_infos_set_up());
+  }
 
-
-
-  void fill(const vector<MyNode*>& nodes_T1,
-            const vector<MyNode*>& nodes_T2)
+  void fill()
   {
     //std::cout << "constructing DP table..."<<std::endl;
-    for(unsigned u_po = 0; u_po < nodes_T1.size(); ++u_po){
-      const MyNode* const u = nodes_T1[u_po];
-      for(unsigned v_po = 0; v_po < nodes_T2.size(); ++v_po)
-        set_entry(u, u_po, nodes_T2[v_po], v_po);
+    for(unsigned u_po = 0; u_po < T1.num_nodes(); ++u_po){
+      const MyNode* const u = T1.node_by_po_num(u_po);
+      for(unsigned v_po = 0; v_po < T2.num_nodes(); ++v_po)
+        set_entry(u, u_po, T2.node_by_po_num(v_po), v_po);
     }
   }
 };
 
 typedef pair<unsigned, TraceItem> TracableEntry;
+
 class DPTable: public _DPTable<unsigned>{
   using _DPTable<unsigned>::_DPTable;
   virtual unsigned score(const unsigned& e) const { return e; }
   virtual unsigned construct_entry(const unsigned score, const TraceItem& trace) const { return score; }
 };
+
 class TracableDPTable: public _DPTable<TracableEntry>{
   using _DPTable<TracableEntry>::_DPTable;
+  using _DPTable<TracableEntry>::T1;
+  using _DPTable<TracableEntry>::T2;
   virtual unsigned score(const TracableEntry& e) const { return e.first; }
   virtual TracableEntry construct_entry(const unsigned score, const TraceItem& trace) const { return {score, trace}; }
+
+public:
+  using _DPTable<TracableEntry>::operator[];
+
+  void trace(list<StId>& result) const
+  {
+    return trace(result, T1.num_nodes() - 1, T2.num_nodes() - 1);
+  }
+
+  void trace(list<StId>& result, const unsigned p, const unsigned q) const
+  {
+    const DPEntry& entry = operator[]({p, q});
+    const TraceItem& ti = entry.second;
+    //cout << "considering ["<<p<<", "<<q<<"]"<<endl;
+    if(ti.from_leaf()){
+      // if one of the vertices is a leaf and the other has the leaf in its clade, add the leaf to the result
+      if(entry.first){
+        const MyNode* const u = T1.node_by_po_num(p);
+        result.push_back( u->isLeaf() ? stid(u) : stid(T2.node_by_po_num(q)));
+        //cout << "leaf-stid: "<<result.back()<<endl;
+      }
+    } else if(ti.from_matching()){
+      // if the best MAST for p and q comes from matching their children, recurse to each matched pair
+      const MyNode* const u = T1.node_by_po_num(p);
+      //unsigned size_before = result.size();
+      trace(result, u->getSon(0)->getInfos().po_num, ti.first);
+      //unsigned size_middle = result.size();
+      //cout << "level ["<<p<<", "<<q<<"]: (1) gained "<<size_middle-size_before<<" leaves from the entry ["<<u->getSon(0)->getInfos().po_num<<", "<<trace.first<<"]"<<endl;
+      trace(result, u->getSon(1)->getInfos().po_num, ti.second);
+      //unsigned size_end = result.size();
+      //cout << "level ["<<p<<", "<<q<<"]: (2) gained "<<size_end-size_middle<<" leaves from the entry ["<<u->getSon(1)->getInfos().po_num<<", "<<trace.second<<"]"<<endl;
+    } else{
+      // in all other cases, the TraceItem tells us where to go next
+      //const unsigned size_before = result.size();
+      const unsigned new_u = (ti.first == -1) ? p : ti.first;
+      const unsigned new_v = (ti.second == -1) ? q : ti.second;
+      trace(result, new_u, new_v);
+      //const unsigned size_end = result.size();
+      //cout << "level ["<<p<<", "<<q<<"]: gained "<<size_end-size_before<<" leaves from the entry ["<<trace.first<<", "<<trace.second<<"]"<<endl;
+    }
+  }
+
 };
 
 
-void trace_table(const vector<MyNode*>& nodes_T1,
-                 const vector<MyNode*>& nodes_T2,
-                 const TracableDPTable& mast_table,
-                 list<StId>& result,
-                 const unsigned p,
-                 const unsigned q)
-{
-  const DPEntry& entry = mast_table[{p, q}];
-  const TraceItem& trace = entry.second;
-  //cout << "considering ["<<p<<", "<<q<<"]"<<endl;
-  if(trace.from_leaf()){
-    // if one of the vertices is a leaf and the other has the leaf in its clade, add the leaf to the result
-    if(entry.first){
-      const MyNode* const u = nodes_T1[p];
-      result.push_back( u->isLeaf() ? stid(u) : stid(nodes_T2[q]));
-      //cout << "leaf-stid: "<<result.back()<<endl;
-    }
-  } else if(trace.from_matching()){
-    // if the best MAST for p and q comes from matching their children, recurse to each matched pair
-    const MyNode* const u = nodes_T1[p];
-    //unsigned size_before = result.size();
-    trace_table(nodes_T1, nodes_T2, mast_table, result, u->getSon(0)->getInfos().po_num, trace.first);
-    //unsigned size_middle = result.size();
-    //cout << "level ["<<p<<", "<<q<<"]: (1) gained "<<size_middle-size_before<<" leaves from the entry ["<<u->getSon(0)->getInfos().po_num<<", "<<trace.first<<"]"<<endl;
-    trace_table(nodes_T1, nodes_T2, mast_table, result, u->getSon(1)->getInfos().po_num, trace.second);
-    //unsigned size_end = result.size();
-    //cout << "level ["<<p<<", "<<q<<"]: (2) gained "<<size_end-size_middle<<" leaves from the entry ["<<u->getSon(1)->getInfos().po_num<<", "<<trace.second<<"]"<<endl;
-  } else{
-    // in all other cases, the TraceItem tells us where to go next
-    //const unsigned size_before = result.size();
-    const unsigned new_u = (trace.first == -1) ? p : trace.first;
-    const unsigned new_v = (trace.second == -1) ? q : trace.second;
-    trace_table(nodes_T1, nodes_T2, mast_table, result, new_u, new_v);
-    //const unsigned size_end = result.size();
-    //cout << "level ["<<p<<", "<<q<<"]: gained "<<size_end-size_before<<" leaves from the entry ["<<trace.first<<", "<<trace.second<<"]"<<endl;
-  }
-}
 
-void trace_table(const vector<MyNode*>& nodes_T1,
-                 const vector<MyNode*>& nodes_T2,
-                 const TracableDPTable& mast_table,
-                 list<StId>& result)
-{
-  return trace_table(nodes_T1, nodes_T2, mast_table, result, nodes_T1.size() - 1, nodes_T2.size() - 1);
-}
 
 
 
