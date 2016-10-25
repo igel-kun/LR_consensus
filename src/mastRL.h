@@ -24,8 +24,6 @@ MyTree* mastRL(MyTree& T0,
   unsigned max_dist_index = 0;
   unsigned max_dist_to_T0 = 0;
   T0.setup_node_infos(false);
-  const unsigned T0_leaves = T0.num_leaves();
-
   //cout << "Checking candidate"<<endl;
   //T0.pretty_print();
   //cout << "with "<<T0.num_nodes()<<" nodes"<<endl;
@@ -34,7 +32,7 @@ MyTree* mastRL(MyTree& T0,
     assert(trees[i]->node_infos_set_up());
     //cout << "mast against"<<endl;
     //trees[i]->pretty_print();
-    const unsigned dist = T0_leaves - mast(T0, *trees[i]);
+    const unsigned dist = T0.num_leaves() - mast(T0, *trees[i]);
     if(dist > max_dist_to_T0){
       max_dist_index = i;
       max_dist_to_T0 = dist;
@@ -84,5 +82,19 @@ MyTree* mastRL(MyTree& T0,
 {
   return mastRL(T0, trees, max_dist, max_dist);
 }
+
+//! without a d, find a consensus tree that minimizes d
+MyTree* mastRL(MyTree& T0, const vector<MyTree*>& trees)
+{
+  unsigned d = 1;
+  MyTree* result;
+  while( (result = mastRL(T0, trees, d)) == NULL) {
+    cout << "computing consensus for "<<d<<endl;
+    ++d;
+  }
+  return result;
+}
+
+
 
 #endif /*MASTRL_H_*/

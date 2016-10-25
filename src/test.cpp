@@ -73,7 +73,7 @@ void test_2mast(const MyTree& t, const vector<MyNode*>& nodes, const vector<MyTr
 int main(int argc, char** argv){
   vector<MyTree*> trees;
 	trees = readTrees(argv[1]);
-	unsigned d = atoi(argv[2]);
+	//unsigned d = atoi(argv[2]);
 
   // NOTE: to call mastRL, we need the following preprocessing steps:
   // Step 1: seperate a candidate t from the trees
@@ -88,6 +88,7 @@ int main(int argc, char** argv){
   for(MyTree* T2: trees) {
     T2->setup_node_infos();
     T2->sync_leaf_stids(*t);
+    T2->lca_preprocess();
   }
  
 //  test_LCA(t);
@@ -95,12 +96,12 @@ int main(int argc, char** argv){
 //  test_induced_subtree(t); 
 //  test_2mast(t, trees);
 
-  MyTree* mRL = mastRL(*t, trees, d);
+  MyTree* mRL = mastRL(*t, trees);
 
-  cout << "consensus: "<<endl;
+  cout << "closest consensus: "<<endl;
   if(mRL) mRL->pretty_print(); else cout << " none"<<endl;
 
-  
+//  TreeTemplateTools::treeToParenthesis(*mRL, false);
 
   return 0;
 }
