@@ -52,46 +52,9 @@ void test_induced_subtree(const MyTree& t)
   std::cout << TreeTemplateTools::treeToParenthesis(*restricted) << std::endl;
 }
 
-int main(int argc, char** argv){
-  vector<MyTree*> trees;
-	trees = readTrees(argv[1]);
-	unsigned d = atoi(argv[2]);
-  MyTree* t = trees.back();
-  trees.pop_back();
-
-
-  // get nodes of t in post order; this is important for mast
-  cout << "computing PO traversal..."<< endl;
-  vector<MyNode*> nodes;
-  t->setup_node_infos(true, &nodes);
-  //t->pretty_print();
-  
-  // sync stids of all leaves with that of t
-  for(MyTree* T2: trees) {
-    T2->setup_node_infos();
-    T2->sync_leaf_stids(*t);
-  }
-
-  std::cout << "preprocessing LCAs..." << std::endl;
-  t->lca_preprocess();
-
-
-  cout << "nodes: ";
-  for(const auto& n: nodes)
-    cout << n->getId() <<": "<< (n->hasName() ? n->getName() : (string)" " ) << " ("<<stid(n)<<", "<<n->getInfos().po_num<<")  ";
-  cout << endl;
-  
-//  test_LCA(t);
-//  test_nearest_indices();
-//  test_induced_subtree(t); 
-
-  MyTree* mRL = mastRL(*t, trees, d);
-
-  cout << "consensus: "<<endl;
-  if(mRL) mRL->pretty_print(); else cout << " none"<<endl;
-
-  
-  /*
+/*
+void test_2mast(const MyTree& t, const vector<MyNode*>& nodes, const vector<MyTree*>& trees)
+{
   for(MyTree* const T2: trees){
     list<StId> mast_leaves;
     std::cout << "computing 2-tree mast..." << std::endl;
@@ -104,7 +67,40 @@ int main(int argc, char** argv){
     for(const auto& id: mast_leaves) std::cout << t[id]->getName() << ", ";
     cout << endl;
   }
+}
 */
+
+int main(int argc, char** argv){
+  vector<MyTree*> trees;
+	trees = readTrees(argv[1]);
+	unsigned d = atoi(argv[2]);
+
+  // NOTE: to call mastRL, we need the following preprocessing steps:
+  // Step 1: seperate a candidate t from the trees
+  MyTree* t = trees.back();
+  trees.pop_back();
+  // Step 2: setup t's node infos (depths, clades, stids, ...) & lcas
+  t->setup_node_infos(true);
+  t->lca_preprocess();
+  //t->pretty_print();
+  
+  // Step 3: setup node infos and sync stids of all leaves of the trees with that of t
+  for(MyTree* T2: trees) {
+    T2->setup_node_infos();
+    T2->sync_leaf_stids(*t);
+  }
+ 
+//  test_LCA(t);
+//  test_nearest_indices();
+//  test_induced_subtree(t); 
+//  test_2mast(t, trees);
+
+  MyTree* mRL = mastRL(*t, trees, d);
+
+  cout << "consensus: "<<endl;
+  if(mRL) mRL->pretty_print(); else cout << " none"<<endl;
+
+  
 
   return 0;
 }
