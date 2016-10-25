@@ -8,7 +8,9 @@
 #include "utils.h"
 #include "MyTree.h"
 #include "mastRL.h"
-
+// From PhylLib:
+#include <Bpp/Phyl/Io/IoTree.h>
+#include <Bpp/Phyl/Io/Newick.h>
 using namespace std;
 using namespace bpp;
 
@@ -74,6 +76,9 @@ int main(int argc, char** argv){
   vector<MyTree*> trees;
 	trees = readTrees(argv[1]);
 	//unsigned d = atoi(argv[2]);
+	string outputPath = "out.txt";
+	if(argc>2) outputPath= argv[2];
+
 
   // NOTE: to call mastRL, we need the following preprocessing steps:
   // Step 1: seperate a candidate t from the trees
@@ -98,10 +103,14 @@ int main(int argc, char** argv){
 
   MyTree* mRL = mastRL(*t, trees);
 
-  cout << "closest consensus: "<<endl;
-  if(mRL) mRL->pretty_print(); else cout << " none"<<endl;
-
-//  TreeTemplateTools::treeToParenthesis(*mRL, false);
+  //cout << "consensus: "<<endl;
+  //if(mRL) mRL->pretty_print(); else cout << " none"<<endl;
+  
+  if(mRL) {
+    cout << " OK"<<endl;
+	  Newick newick;
+  	newick.write(* mRL, outputPath, true);
+  } else cout << " none"<<endl;
 
   return 0;
 }
