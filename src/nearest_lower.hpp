@@ -17,7 +17,7 @@ class nearest_lower{
   {
     target_index.resize(container.size());
     // stack of indices of container
-    std::stack<unsigned> prev_indices;
+    std::stack<ssize_t> prev_indices;
     // go from left to right, keeping the stack of "visible" values
     // (a value is "visible" from us if there is no other value of at least this score between them and us)
     const ssize_t lower_bound = (dir == DIR_LEFT ? 0 : container.size() - 1);
@@ -28,7 +28,7 @@ class nearest_lower{
       while(!prev_indices.empty() && cmp(current, container[prev_indices.top()]))
         prev_indices.pop();
       // the next item on the stack is the nearest with higher/lower score
-      target_index[i] = prev_indices.empty() ? (ssize_t)(-1) : (ssize_t)prev_indices.top();
+      target_index[i] = prev_indices.empty() ? (ssize_t)(-1) : prev_indices.top();
       // add us to the stack
       prev_indices.push(i);
     }

@@ -6,7 +6,8 @@ set (mast_VERSION_MINOR 0)
 
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=c++11")
+set(CMAKE_COMMON_FLAGS "${CMAKE_COMMON_FLAGS} -pthread -Wall -fmax-errors=2 -ftemplate-backtrace-limit=0 -std=c++11 -DIL_STD")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_COMMON_FLAGS} -O3")
 
 # --- the IMPROVED_FIND_LIBRARY macro (taken from the Bio++ CMakeLists.txt) ---
 macro(IMPROVED_FIND_LIBRARY OUTPUT_LIBS lib_name include_to_find)
@@ -28,9 +29,6 @@ macro(IMPROVED_FIND_LIBRARY OUTPUT_LIBS lib_name include_to_find)
   SET(${OUTPUT_LIBS} ${${OUTPUT_LIBS}} ${${lib_name}_LIBRARY})
 ENDMACRO(IMPROVED_FIND_LIBRARY)
 
-#--- Libraries & includes ---
-include_directories("include/")
-
 # uncomment for static compilation
 #set(CMAKE_FIND_LIBRARY_SUFFIXES ".a ${CMAKE_FIND_LIBRARY_SUFFIXES}") 
 
@@ -47,7 +45,11 @@ include_directories("hslinkern")
 
 # Source Directory
 add_subdirectory ( "hslinkern" )
+
 add_executable( "${PROJECT_NAME}" "${PROJECT_NAME}.cpp" )
 target_link_libraries ( "${PROJECT_NAME}" "${LIBS}" "hslinkern" )
+
+add_executable( "test" "test.cpp" )
+target_link_libraries ( "test" "${LIBS}" "hslinkern" )
 
 

@@ -7,7 +7,7 @@ using namespace std;
 Hypergraph kernelize(const Hypergraph &G, const Graphstats &s, unsigned int k) {
   Hypergraph H;
 
-  cout << endl << "... computing kernel for k = " << k << " ..." << endl;
+//  cout << endl << "... computing kernel for k = " << k << " ..." << endl;
   
   initialize_db(G, s);
   

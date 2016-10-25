@@ -50,7 +50,7 @@ class lca
   void register_vertex_in_euler_tour(const node_type& node,
                                      const unsigned depth)
   {
-    const unsigned& node_id = _node_to_id[node];
+    const auto& node_id = _node_to_id[node];
     if(node_id >= _node_id_to_euler_index.size())
       _node_id_to_euler_index.resize(node_id + 1);
     _node_id_to_euler_index[node_id] = _euler_tour.size();

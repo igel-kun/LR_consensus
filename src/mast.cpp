@@ -39,7 +39,7 @@ using namespace bpp;
 //typedef NodeTemplate<NodeInfos> MyNode;
 //typedef TreeTemplate<MyNode> MyTree;
 
-#include "mast.h"
+#include "mast_SW93.h"
 #include "utils.h"
 
 

@@ -1,20 +1,37 @@
 #ifndef MATRIXTRIPLETS__H_
 #define MATRIXTRIPLETS__H_
 
-using namespace bpp;
 #include <unordered_set>
-typedef NodeTemplate<NodeInfos> MyNode;
+
+#include "vector2d.h"
+
+#include "NodeInfos.h"
+
+using namespace bpp;
+
+//! a 2d vector assigning a pair of PREORDER NUMBERS to a set of STIDs such that the three leaves form a conflict
+typedef symmetric_vector2d<unordered_set<unsigned> > MatrixTriplets;
+
+void add_conflict(MatrixTriplets& trip, const unsigned x, const unsigned y, const unsigned z)
+{
+  trip[{x, y}].insert(z);
+}
+
+bool is_conflict(const MatrixTriplets& trip, const unsigned x, const unsigned y, const unsigned z)
+{
+  const auto& conflict_set = trip[{x ,y}];
+  return conflict_set.find(z) != conflict_set.end();
+}
+
+/*
 
 #define  maxDim 1000
 class MatrixTriplets
 {	
-	private:
 	unsigned dim;
 	unordered_set< StId > ** GroupOfTriplets ;
 	
 	public:
-	
-
 
 	void setDim(unsigned dimTrees){
 		dim= dimTrees;
@@ -58,11 +75,11 @@ class MatrixTriplets
 			return GroupOfTriplets[j][i].find(z)!=GroupOfTriplets[j][i].end();
 	}
 	
-	void add(MyNode  & I,MyNode  & J,MyNode  & Z) {
+	void add(MyNode& I, MyNode& J, MyNode& Z) {
 		//cout << I.getName()  << " "<< J.getName()  << " " << Z.getName() << " " << endl;
-		StId i= (I.getInfos()).getStId();
-		StId j= (J.getInfos()).getStId();
-		StId z= (Z.getInfos()).getStId();
+		StId i= stid(&I);
+		StId j= stid(&J);
+		StId z= stid(&Z);
 		//cout << i << " " << j << " " << z << endl;
 		if (i<j) 
 			GroupOfTriplets[i][j].insert(z);
@@ -100,6 +117,6 @@ class MatrixTriplets
 		
 };
 
-
+*/
 
 #endif /*MATRIXTRIPLETS_H_*/

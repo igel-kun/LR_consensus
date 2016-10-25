@@ -13,272 +13,174 @@ void agreementMatching(MultiGraph & Gx){
     #warning TODO
 };
 
-vector <int > mast(vector<MyTree *> trees, map<string,unsigned> association)
+
+unsigned* mast(MyTree* T1, MyNode* root_of_T2);
+unsigned* mast(MyNode* root_of_T1, MyTree* T2);
+
+
+//! this computes the mast between T1 and each subtree of T2 in an array, mapping StId of a vertex v of T2 to the size of a mast between T1 & v
+//NOTE: for StIds that do not occur in T2, the mapping is undefined
+//NOTE: the caller should free the allocated space!
+unsigned* mast(MyTree* T1, MyTree* T2)
 {
-	map<string,unsigned>::iterator iter;
-	unsigned maxId = trees[0]->getLeaves().size();
-
-	for(unsigned y=0;y< trees.size();y++){
-		vector <MyNode * >  nodes= trees[y]->getNodes();
-		  //create a vector of pounsigneders from stIds to nodes
-		trees[y]->setCorrespondanceLenghtId(nodes.size());
-		for(unsigned l=0;l< nodes.size();l++){
-		// twin leaves will have the same stId in the two trees, associated to the name via the mapping association
-		// the unsignedernal nodes will have stIds starting from maxId up
-			if(nodes[l]->isLeaf()){
-				iter= association.find( nodes[l]->getName());
-				nodes[l]->getInfos().setStId(iter->second);
-				//set the pounsigneder from stId to node
-				trees[y]->setNodeWithStId(nodes[l], iter->second);
-			}
-			else{
-				nodes[l]->getInfos().setStId(maxId);
-				//set the pounsigneder from stId to node
-				trees[y]->setNodeWithStId(nodes[l],maxId);
-				maxId++;
-			}
-		}
-		trees[y]->setDepthAndNumberOfDescendents();
-
-		//STEP 1
-
-		trees[y]->getCentroidDecompostion();
-		trees[y]->lca_preprocess();
+	// ============= STEP 1 ==================
+	//preprocessing for T1 and T2
+  T2->sync_leaf_stids(*T1);
+	for(MyTree* t: {T1, T2}){
+		t->setDepthAndNumberOfDescendents();
+		t->getCentroidDecompostion();
+		t->lca_preprocess();
+#warning another preoder traversal, eliminate one!
+	  t->setLeafPreOrder();
 	}
 
-	//STEP 2
+	// ============= STEP 2 ==================
+	vector<MyNode*> leavesT2 = T2->getLeaves();
+	StId corrMi[leavesT2.size()];
+	StId orderedIds[leavesT2.size()] ; //leaf ids ordered in preorder in T2
 
-	trees[1]->setPreOrder();
-	vector < MyNode * > leavesSecondTree = trees[1]->getLeaves();
-	unsigned corrMi[leavesSecondTree.size()];
-
-	#warning another preoder traversal, eliminate one!
+	for(const MyNode* leaf: leavesT2)
+		orderedIds[leaf->getInfos().getPreOrder()] = stid(leaf);
 	
-	unsigned orderedIds[leavesSecondTree.size()] ; //leaf ids ordered in preorder in T2
-	for(unsigned y=0;y< leavesSecondTree.size();y++){
-		orderedIds[leavesSecondTree[y]->getInfos().getPreOrder()] = leavesSecondTree[y]->getInfos().getStId();
-	}
-	vector < MyNode * > rootsOfMiSubtrees; // the roots of the subtrees that are hanging from the centroid path of the root
-	MyNode * currentNode = trees[0]->getRootNode();
-	unsigned i=0;
-	vector < MyNode * > ui;
+	vector<MyNode*> Mi_roots; // the roots of the subtrees that are hanging from the centroid path of the root
+	MyNode* currentNode = T1->getRootNode();
+	unsigned p = 0;
+	vector<MyNode*> ui;
 	
-	while(! currentNode->isLeaf()){
-	    ui.push_back(currentNode); //the ui are set 
-	     if(currentNode->getSon(0)->getInfos().getCentroidPathNumber()==0){
-	     	currentNode = currentNode->getSon(0);
-	     	rootsOfMiSubtrees.push_back( currentNode->getSon(1));
-	     }
-	     else{
-	     	currentNode = currentNode->getSon(1);
-	     	rootsOfMiSubtrees.push_back( currentNode->getSon(0));
-	     }
-	     vector < MyNode * > leavesNode = TreeTemplateTools::getLeaves(* rootsOfMiSubtrees[rootsOfMiSubtrees.size()]);
-		 for(unsigned y=0;y< leavesNode.size();y++){
-			corrMi[leavesNode[y]->getInfos().getStId()]	=i ; //this leaf is in subtree Mi
-		 }
-	     i++; //number of Mi
+	while(!currentNode->isLeaf()){
+    ui.push_back(currentNode); //the ui are set 
+	  const bool Son0next = (currentNode->getSon(0)->getInfos().getCentroidPathNumber() == 0);
+    currentNode = currentNode->getSon( Son0next ? 0 : 1);
+    Mi_roots.push_back( currentNode->getSon( Son0next ? 1 : 0));
 
-	}
-	//int up_id =currentNode->getInfos().getStId() ;  // the stid of up
-    ui.push_back(currentNode);
+    // save the StIds of the leaves of Mi in corrMi
+    for(const MyNode* Mi_leaf: TreeTemplateTools::getLeaves(*Mi_roots.back()))
+      corrMi[stid(Mi_leaf)] = p; //this leaf is in subtree Mi
     
-
-
-	vector<unsigned> * corrMiT2 = new vector<unsigned>[i-1];
-
-	for(unsigned y=0;y< leavesSecondTree.size();y++){
-		corrMiT2[corrMi[orderedIds[y]]].push_back(orderedIds[y]); // to comment
+    ++p; //number of Mi
 	}
+  ui.push_back(currentNode); // finally, push u_p
+	const StId up_id = stid(currentNode);  // the stid of up
 
-    vector<MyTree *> Sis;
-    
-    vector < vector <int > > masts_Mi_tree; 
-    
-	for(unsigned y=0;y< rootsOfMiSubtrees.size();y++){
 
-		vector<MyTree *> recursiveCallTrees;
-		recursiveCallTrees.push_back(new MyTree(* rootsOfMiSubtrees[y])); // subtrees Mi in T1
-		MyTree * Si = trees[1]->induced_subtree(corrMiT2[y]);
-		recursiveCallTrees.push_back(Si);
-		Sis.push_back(Si);
-		vector <int > masts_for_Mi = mast(recursiveCallTrees, association);
-		masts_Mi_tree.push_back(masts_for_Mi);
+  // for each i, store the StIds of the leaves in Mi in order that they appear in T2
+	vector<StId>* corrMiT2 = new vector<StId>[p];
+	for(const StId leaf_id: orderedIds)
+		corrMiT2[corrMi[leaf_id]].push_back(leaf_id); // to comment
+
+  vector<MyTree*> Si(Mi_roots.size());
+  vector<unsigned*> MiSi_mast(Mi_roots.size()); // store the MAST sizes between Mi and each vertex of Si
+	for(unsigned i=0; i < Mi_roots.size(); ++i){
+		Si[i] = T2->induced_subtree(corrMiT2[i]);// subtrees Mi in T2
+    MiSi_mast[i] = mast(Mi_roots[i], Si[i]);
 	}
-	
-	//STEP 3
-	
-	//preprocess trees[1] to store, for each node y of trees[1], the root of the centroid paths to which y belongs
-	
-	deque < MyNode * > nodesToConsider;
-	unsigned corrNodesRootCentroidPaths[trees[1]->getCorrespondanceLenghtId()];
-	nodesToConsider.push_back(trees[1]->getRootNode());
-	unsigned rootId = trees[1]->getRootNode()->getInfos().getStId();
-	corrNodesRootCentroidPaths[rootId]=rootId;
-	unsigned numberCentroidPathsT2=1;
-	while(! nodesToConsider.empty()){
-		MyNode * currentNode =nodesToConsider.front();
-    	nodesToConsider.pop_front();
-		if(currentNode->hasFather()){
-			MyNode * father = currentNode->getFather();
-			int idFather= father->getInfos().getStId();
-			int idNode= currentNode->getInfos().getStId();
-		 	if(currentNode->getInfos().getCentroidPathNumber()==father->getInfos().getCentroidPathNumber())
-		 		corrNodesRootCentroidPaths[idNode]=corrNodesRootCentroidPaths[idFather]; //same root of centroid path as its father
-		 	else{
-		 		corrNodesRootCentroidPaths[idNode]=idNode; //the node is a root of a centroid path in T2
-				numberCentroidPathsT2++;
-			}
-			
-		}
-		unsigned numSons= currentNode->getNumberOfSons();
-		for(unsigned j = 0;j < numSons; j++)
-			nodesToConsider.push_back(currentNode->getSon(j)); 
-	}
-	
-	//creating all the muligraphs we will need 
-	MultiGraph ** Gxs = new MultiGraph*[numberCentroidPathsT2];
-	for(unsigned j = 0;j < numberCentroidPathsT2; j++)
-		Gxs[j]= new MultiGraph();
-		
-	
-	//create the Rxs set, with the nodes ordered in preorder 
-	nodesToConsider.push_back(trees[1]->getRootNode());
-	while(! nodesToConsider.empty()){
-		MyNode * currentNode = nodesToConsider.front();
-    nodesToConsider.pop_front();
-    pair< int, bool > v(currentNode->getInfos().getStId(), true);
-    boost::add_vertex(v, * Gxs[currentNode->getInfos().getCentroidPathNumber()]->getGraph());
-    (* Gxs[currentNode->getInfos().getCentroidPathNumber()]->getGraph())[v].infos=v;
-    Gxs[currentNode->getInfos().getCentroidPathNumber()]->addRxVertex(currentNode->getInfos().getStId());
-    unsigned numSons= currentNode->getNumberOfSons();
-    for(unsigned j = 0;j < numSons; j++)
-      nodesToConsider.push_back(currentNode->getSon(j)); 
-	}
-	
-	// adding vertices and edges involving up
-	
-	if(! trees[1]->isPreprocessed()) trees[1]->setClades();
-  
-  const MyNode& up = *ui.back();
-  const StId up_StId = up.getInfos().getStId();
-	const MyNode* twin_up_in_T2 = trees[1]->getNodeWithStId(up_StId);
-	const Clade& clade_twin_up_in_T2 = twin_up_in_T2->getInfos().getClade();
-	const pair<int, bool> v(up_StId, false);
-	for(unsigned j = 0; j < numberCentroidPathsT2; j++){
-		const MyNode* rootOfCP = trees[1]->getNodeWithStId(Gxs[j]->getRxVertices()[0]); //this is true because of the way RxVertices are added
-		const Clade& clade_rootOfCP = rootOfCP->getInfos().getClade();
-		if(clade_rootOfCP.contains(clade_twin_up_in_T2)){
-			auto vertex = boost::add_vertex(v, * Gxs[j]->getGraph());
-			(* Gxs[j]->getGraph())[v].infos = v;
-   		Gxs[j]->addRxVertex(vertex);
-   		MyNode * vq = trees[1]->getNodeWithStId(Gxs[j]->getRxVertices().back()); //this is true because of the way RxVertices are added
-			const MyNode* lca = trees[1]->getLCA(vq, twin_up_in_T2);
-			if(lca->getInfos().getCentroidPathNumber() == j){//the LCA is in Rx
-				pair< int, bool > vlca(lca->getInfos().getStId(), true);
-				boost::add_edge_by_label(v, vlca, EdgeMultiGraph{ 1, "white" }, * Gxs[j]->getGraph() );
-				boost::add_edge_by_label(v, vlca, EdgeMultiGraph{ 1, "red" },   * Gxs[j]->getGraph() );
-				boost::add_edge_by_label(v, vlca, EdgeMultiGraph{ 1, "green" }, * Gxs[j]->getGraph() );
-			}
-		}
-	}
-	
-	int map[rootsOfMiSubtrees.size()][trees[1]->getCorrespondanceLenghtId()]; //this map will be useful later on
-	
-
-	// adding vertices and edges involving ui, with i \neq p
-	
-	for(unsigned i = 0;i < Sis.size(); i++){
-	    vector <MyNode *> nodes_Sis = Sis[i]->getNodes();
-	    vector <MyNode *> nodes_T2 = trees[1]->getNodes();
-        for(unsigned j = 0;j < nodes_T2.size(); j++){
-            nodes_T2[j]->getInfos().setIsVisisted(false); //get isVisisted false for all node of T2
-        }
-        for(unsigned j = 0;j < nodes_Sis.size(); j++){
-            int id_z = nodes_Sis[j]->getInfos().getStId();
-            MyNode * z = trees[1]->getNodeWithStId(id_z);
-            unsigned cp_father_z_in_T2 = trees[1]->getNodeWithStId(nodes_Sis[j]->getFather()->getInfos().getStId())->getInfos().getCentroidPathNumber();
-            while((z->getInfos().getCentroidPathNumber() != cp_father_z_in_T2) && trees[1]->getNodeWithStId(corrNodesRootCentroidPaths[z->getInfos().getStId()])->hasFather()){
-                z= trees[1]->getNodeWithStId(corrNodesRootCentroidPaths[z->getInfos().getStId()])->getFather();
-                z->getInfos().setIsVisisted(true);
-                #warning, check it is NULL in the default constructor
-                if(Sis[i]->getNodeWithStId(z->getInfos().getStId()) !=NULL) //vj is in Si
-                   map[i][z->getInfos().getStId()]=z->getInfos().getStId();  //vj is not in Si    
-                else
-                   map[i][z->getInfos().getStId()]=id_z;
-                }          
-              
-        }
-        
-        for(unsigned j = 0;j < nodes_T2.size(); j++){
-            if(nodes_T2[j]->getInfos().getIsVisisted()){
-            	pair< int, bool > l(ui[i]->getInfos().getStId(), false); //ui is to add to a Lx
-            	int graph_to_add_edge_to = trees[1]->getNodeWithStId(corrNodesRootCentroidPaths[nodes_T2[j]->getInfos().getStId()])->getInfos().getCentroidPathNumber(); //get the Gx to which add ui
-			        boost::add_vertex(l, * Gxs[graph_to_add_edge_to]->getGraph());
-			        (* Gxs[graph_to_add_edge_to]->getGraph())[l].infos=l;
-    			    pair< int, bool > r(nodes_T2[j]->getInfos().getStId(), true); //get the node in Rx corresponding to nodes_T2[i]
-    			    //auto v_y = boost::vertex_by_label(l, * Gxs[graph_to_add_edge_to]->getGraph()); //y is already in Gx
-              if(nodes_T2[j]->isLeaf() &&  nodes_T2[j]->getInfos().getCentroidPathNumber()==0){
-                  boost::add_edge_by_label(l,r, EdgeMultiGraph{ 1, "white" }, * Gxs[graph_to_add_edge_to]->getGraph()); 
-                  boost::add_edge_by_label(l,r, EdgeMultiGraph{ 1, "red" }, * Gxs[graph_to_add_edge_to]->getGraph()); 
-                  boost::add_edge_by_label(l,r, EdgeMultiGraph{ 1, "green" }, * Gxs[graph_to_add_edge_to]->getGraph());             
-              }
-              else{
-                  boost::add_edge_by_label(l,r, EdgeMultiGraph{ -1, "white" }, * Gxs[graph_to_add_edge_to]->getGraph()); //weights not set yet
-              } 
-            }
-        }
-    
-    	for(unsigned k = numberCentroidPathsT2;k !=0 ; k--){ //for each Gx
-    	    for (auto edges =boost::edges(* Gxs[k]->getGraph()); edges.first!= edges.second; ++edges.first){ //for each edge of Gx
-    	       if ((* Gxs[k]->getGraph())[* edges.first].weight ==-1){ //we still have to set the edge
-    	            int id_ui = Gxs[k]->getGraph()->graph()[boost::source(* edges.first, * Gxs[k]->getGraph())].infos.first;
-    	            pair<int, bool> label_ui(id_ui, false);
-                  int i = trees[0]->getNodeWithStId(id_ui)->getInfos().getStId();
-    	            
-                  int id_vj = Gxs[k]->getGraph()->graph()[boost::target(* edges.first, * Gxs[k]->getGraph())].infos.first;
-    	            pair<int, bool> label_vj(id_vj, true);
-    	            int id_y = map[i][id_vj];
-    	            //setting the white weight
-    	            if(id_vj != id_y){
-                    (* Gxs[k]->getGraph())[* edges.first].weight=masts_Mi_tree[i][id_y];
-    	            } else {
-                    //z is the child of y in T2 such that z is in Nj
-                    MyNode * y_in_Si = Sis[i]->getNodeWithStId(id_y);
-                    int id_z;
-                    #warning check that this is correct (getCentroidPathNumber()!=0) to check that z is n Nj
-                    if(y_in_Si->getSon(0)->getInfos().getCentroidPathNumber()!=0)
-                        id_z= y_in_Si->getSon(0)->getInfos().getStId();
-                    else
-                        id_z= y_in_Si->getSon(1)->getInfos().getStId();
-                    (* Gxs[k]->getGraph())[* edges.first].weight=masts_Mi_tree[i][id_z];
-    	            }
-    	            //setting the green weight
-    	       	    int weightG = masts_Mi_tree[i][id_y];
-    	       	    boost::add_edge_by_label(label_ui, label_vj, EdgeMultiGraph{weightG, "green"}, * Gxs[k]->getGraph()); 
-
-    	            //setting the red weight
-                  #warning, to finish once the matching algorithm has been implemented 
-    	            int weightR = 10000; //largest weight agreeemnt matching in G(y) containing only edges incident on or below vertex u_i in L(y);compute when G(y° is computed...
-    	            boost::add_edge_by_label(label_ui, label_vj, EdgeMultiGraph{ weightR, "red" }, * Gxs[k]->getGraph());
-
-    	       }
-   
-    	    } 
-    	         
-    	    agreementMatching(*Gxs[k]);
-    	}
-
-        	    
-	}
-
-	
-
-	
 	delete [] corrMiT2;
-	vector <int > masts;
-    #warning fill the vector once the matching algorithm has been implemented 
-    return masts;
- }
+
+
+
+	// ============= STEP 3 ==================
+  const unsigned CPs_in_T2 = T2->num_centroid_paths();
+
+  const vector<MyNode*> nodes_T2 = T2->getNodes();
+  // get the maximum StId occuring in T2 in order to know array bounds in the future
+  unsigned max_StId = 0;
+  for(const MyNode* v: nodes_T2) max_StId = std::max(stid(v), max_StId);
+  //creating all the muligraphs we will need
+  //NOTE: this will automatically setup the sets R(x), with the nodes ordered in preorder (each CP from root to leaf)
+  vector<MultiGraph*> Gx(CPs_in_T2);
+  for(unsigned i = 0; i < Gx.size(); ++i)
+    Gx[i] = new MultiGraph(T2->get_centroid_path(i), max_StId);
+    
+  // step 3.1: add vertices and edges involving u_p to each G_x
+  if(! T2->isPreprocessed()) T2->setClades();
+  const MyNode& up = *ui.back();
+  const StId up_StId = stid(&up);
+  const MyNode* twin_up_in_T2 = T2->getNodeWithStId(up_StId);
+  const Clade& clade_twin_up_in_T2 = twin_up_in_T2->getInfos().getClade();
+  const Label v(up_StId, false);
+  for(unsigned j = 0; j < CPs_in_T2; j++){
+    const MyNode* rootOfCP = T2->root_of_centroid_path(j); //this is true because of the way RxVertices are added
+    const Clade& clade_rootOfCP = rootOfCP->getInfos().getClade();
+    if(clade_rootOfCP.contains(clade_twin_up_in_T2)){
+      Gx[j]->addLxVertex(up_StId);
+      const MyNode*  vq = T2->leaf_of_centroid_path(j);
+      const MyNode* lca = T2->getLCA(vq, twin_up_in_T2);      
+      assert(lca->getInfos().getCentroidPathNumber() == j); //the LCA should be in the same centroid path
+      Gx[j].add_edge(up_StId, stid(lca), 1);
+    }// if
+  }// for
+  
+
+  // NOTE: this allocates quadratic space, but leaves most of it uninitialized
+  StId map[Mi_roots.size()][T2->getCorrespondanceLenghtId()]; //this map will be useful later on
+
+  // step 3.2: add vertices and edges involving u_i to each G_x
+  for(ssize_t i = p - 1; i >= 0; --i){
+    const vector<MyNode*> nodes_Si = Si[i]->getNodes();
+    const StId ui_id = stid(ui[i]); 
+     
+    for(unsigned j = 0;j < nodes_Si.size(); j++){
+      const MyNode* z = nodes_Si[j];
+      if(z->hasFather()){
+        const StId id_z = stid(z);
+        const MyNode* parent_z_in_Si = z->getFather();
+        const unsigned cp_parent_z_in_Si = parent_z_in_Si->getInfos().getCentroidPathNumber();
+        MyNode* vj = T2->getNodeWithStId(id_z);
+        while((vj->getInfos().getCentroidPathNumber() != cp_parent_z_in_Si) && T2->root_of_centroid_path_of(vj)->hasFather()){
+          const MyNode* const root_Nj = vj;
+          vj = T2->root_of_centroid_path_of(vj)->getFather();
+          const StId id_vj = stid(vj);
+          const StId y_id = (Si[i]->getNodeWithStId(id_vj) != NULL) ? id_vj : id_z;
+
+          map[i][id_vj] = y_id;
+          // if map(i,j) == v_j, the white weight is the mast between Mi & Si rooted at the child of v_j,
+          // if map(i,j) != v_j, the white weight is the mast between Mi & Si rooted at z
+          const int white_weight = mast_MiSi[i][ (y_id == id_vj) ? stid(root_Nj) : id_z ];
+          // the green weight is the mast between Mi and map(i,j)
+          const int green_weight = mast_MiSi[i][y_id];
+          // computing the red weight needs the agreement matching of G_y
+//          const int red_weight = -1;
+          const MultiGraph& Gy = *Gx[root_Nj->getInfos()->getCentroidPathNumber()];
+          const int red_weight = Gy.agreement_matching_below(y_id, LEFT);
+
+          // add u_i to G_j and add the corresponding edge
+          const unsigned cp_of_vj = vj->getInfos().getCentroidPathNumber();
+          MultiGraph& G = *Gx[cp_of_vj]; //get the Gx to which add ui
+          G.addLxVertex(ui_id);
+          G.add_edge(ui_id, id_vj, white_weight, green_weight, red_weight);
+        }// while
+      }// if
+    }// for each vertex z of S_i
+  }// for all Si
+ 
+  // compute array to return
+  unsigned* result = new[nodes_T2.size()];
+  for(const MyNode*& v: nodes_T2){
+    const unsigned x = v->getInfos().getCentroidPath();
+    const StId v_id = stid(v);
+    result[v_id] = Gx[x]->agreement_matching_below(v_id, RIGHT);
+  }
+	return result;
+}
+
+unsigned* mast(MyTree* T1, MyNode* root_of_T2)
+{
+  MyTree* T2 = new MyTree(root_of_T2);
+  // copy the leaf-StIds from T1 using the names
+  T2->sync_leaf_stids(*T1);
+  unsigned* result = mast(T1, T2);
+  delete T2;
+  return result;
+}
+
+unsigned* mast(MyNode* root_of_T1, MyTree* T2)
+{
+  MyTree* T1 = new MyTree(root_of_T1);
+  // copy the leaf-StIds from T1 using the names
+  T1->sync_leaf_stids(*T2);
+  unsigned* result = mast(T1, T2);
+  delete T1;
+  return result;
+}
 
 #endif /*MAST_H_*/

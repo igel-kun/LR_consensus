@@ -16,105 +16,64 @@
 using namespace std;
 using namespace bpp;
 
+// abbreviations to increase readability
+#define clade(x) (x)->getInfos().clade
+#define stid(x) (x)->getInfos().stId
+#define same_centroid_path(x,y) ((x)->getInfos().cp_num == (y)->getInfos().cp_num)
+#define is_ancestor(x,y) ((x)->getInfos().clade.contains((y)->getInfos().clade))
 
 typedef unsigned StId;
 
+class NodeInfos;
+typedef NodeTemplate<NodeInfos> MyNode;
 
-struct Clade: public pair<unsigned, unsigned>
+
+
+struct Clade: public pair<size_t, size_t>
 {
-  using pair<unsigned, unsigned>::pair;
+  using pair<size_t, size_t>::pair;
   Clade(): pair() {}
-  Clade(const unsigned x): pair(x,x) {}
+  Clade(const size_t x): pair(x,x) {}
   // return whether the given clade is a subclade of us
   bool contains(const Clade& _clade) const
   {
     return (first <= _clade.first) && (_clade.second <= second);
   }
-  operator unsigned() const
-  {
-    assert(first == second);
-    return first;
-  }
-  unsigned size() const
+  // return the number of leaves in the clade
+  size_t size() const
   {
     assert(second >= first);
     return (second - first) + 1;
   }
 };
 
-class NodeInfos  {
-protected:
-		
-  unsigned centroidPathNumber;
-  unsigned depth; 
-  unsigned numberOfDescendents;
+ostream& operator<<(ostream& os, const Clade& c)
+{
+  //return os << reinterpret_cast<const pair<unsigned, unsigned>&>(c); // why does this segfault?
+  return os << "(" << c.first<<", "<<c.second<<")";
+}
+
+// return a minimum clade spanning the given clades
+Clade get_spanning_clade(const Clade& c1, const Clade& c2)
+{
+  return Clade(std::min(c1.first, c2.first), std::max(c1.second, c2.second));
+}
+
+struct NodeInfos  {
   StId stId;
-  bool isVisited;
-  unsigned preorder;
-  Clade clade;
+  unsigned cp_num;        // the centroid path number
+  unsigned depth; 
+  unsigned subtree_size;  // the size of the subtree rooted at this node
+  unsigned po_num;        // the nodes preorder number
+  Clade clade;            // the clade below the node
 
-public:
-
-      void setIsVisisted(bool vis){
-    isVisited = vis;
-  }
-  
-  bool getIsVisisted() const{
-    return isVisited ;
-  }
-
-
-      void setCentroidPathNumber(int id){
-    centroidPathNumber = id;
-  }
-  
-  unsigned getCentroidPathNumber() const{
-    return centroidPathNumber ;
+  // return the leaf_po number, in case we are a leaf
+  unsigned leaf_po_num() const
+  {
+    assert(clade.first == clade.second);
+    return clade.first;
   }
 
-  void setPreOrder(int id){
-    preorder = id;
-  }
-  
-  int getPreOrder() const{
-    return preorder ;
-  }
-  
-    
-  void setStId(int id){
-    stId = id;
-  }
-  
-  int getStId() const {
-    return stId ;
-  }
-  
-
-      void setDepth(int id){
-    depth = id;
-  }
-  
-  int getDepth() const{
-    return depth ;
-  }
-  
-  void setNumberOfDescendents(int id){
-    numberOfDescendents = id;
-  }
-  
-  int getNumberOfDescendents() const{
-    return numberOfDescendents;
-  }
-  
-  void setClade(const Clade& _clade){
-    clade = _clade;
-  }
-  
-  const Clade& getClade() const{
-    return clade;
-  }
-  
-  
 };
 
 #endif /*NODEINFOS_H_*/
