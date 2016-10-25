@@ -8,19 +8,20 @@
 #include "MyTree.h" 
 
 // wrapper for the HittingSet kernel
-set<StId> kernelize(const Hypergraph& G, const unsigned k)
+set<StId>* kernelize(const Hypergraph& G, const unsigned k)
 {
   // step 1: run kernel
   Graphstats stats(get_stats(G));
-  Hypergraph H(kernelize(G, stats, k));
+  Hypergraph* H(kernelize(G, stats, k));
 
-  // step 2: collect remaining vertices
-  set<StId> result;
-  for(const auto& edge: H)
-    for(const StId& v: edge)
-      result.insert(v);
-
-  return result;
+  if(H){
+    // step 2: collect remaining vertices
+    set<StId>* result = new set<StId>();
+    for(const auto& edge: *H)
+      for(const StId& v: edge)
+        result->insert(v);
+    return result;
+  } else return NULL;
 }
 
 
@@ -42,9 +43,11 @@ void construct_conflict_hypergraph(const MyTree& T1, const MyTree& T2, Hypergrap
   	for (unsigned j = i + 1; j < dim; j++){
       const StId j_id = stid(T1.leaf_by_po_num(j));
       const unsigned j_in_T2 = T2[j_id]->getInfos().leaf_po_num();
-  		for (const unsigned z: tripletTree1->at({i, j}))
-  			if(is_conflict(*tripletTree2, i_in_T2, j_in_T2, z))
-  				G.emplace_back(vector<StId>{i_id, j_id, z}); //stIds
+      // ATTENTION: i and j are leaf-postorder numbers whereas z is an stid
+  		for (const unsigned z: (*tripletTree1)[{i, j}])
+  			if(is_not_triple(*tripletTree2, i_in_T2, j_in_T2, z))
+          // for each triple i, j, z in T1 that is NOT a triple in T2 
+  				G.emplace_back(vector<StId>{i_id, j_id, z});
   	}// for all j
   }	// for all i
   delete tripletTree1;
@@ -52,7 +55,7 @@ void construct_conflict_hypergraph(const MyTree& T1, const MyTree& T2, Hypergrap
 }
 
 // return the vertices of the HittingSet kernel of the conflict hypergraph of triplets in T1 & T2
-const set<StId> disagreement_kernel(const MyTree& T1, const  MyTree& T2, const unsigned k)
+set<StId>* disagreement_kernel(const MyTree& T1, const  MyTree& T2, const unsigned k)
 {
   // step 1: build disagreement hypergraph
   Hypergraph G;
@@ -60,11 +63,7 @@ const set<StId> disagreement_kernel(const MyTree& T1, const  MyTree& T2, const u
   //cout << "conflict hypergraph contains "<<G.size()<<" edges" <<endl;
 
   // step 2: run kernelization
-  const set<StId> kernel = kernelize(G, k);
-
-  //cout << "kernel has size "<<kernel.size()<<endl;
-  // step 3: return result
-  return kernel;
+  return kernelize(G, k);
 }
 
 #endif

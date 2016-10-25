@@ -46,7 +46,7 @@ struct add_petal {
   }
 };
 
-Hypergraph kernelize(const Hypergraph &G, const Graphstats &s, unsigned int k);
+Hypergraph* kernelize(const Hypergraph &G, const Graphstats &s, unsigned int k);
 void print_stats(const Graphstats &stats);
 
 #endif

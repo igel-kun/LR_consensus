@@ -57,7 +57,7 @@ class _DPTable: public vector2d<Entry>
   {
     // check whether q is an ancestor of the twin of p in the T2
     //cout << "["<<u_po<<", "<<v_po<<"] = ("<< is_ancestor(&v_ref,&u_ref)<<", {-1,-1})"<<endl;
-    operator[]({u_po, v_po}) = construct_entry(is_ancestor(v, u), {-1, -1});
+    operator[]({u_po, v_po}) = construct_entry((is_ancestor(v, u) || is_ancestor(u,v)), {-1, -1});
   }
 
   void matching_binary(const MyNode& u, const MyNode& v, Entry& target)
@@ -82,7 +82,7 @@ class _DPTable: public vector2d<Entry>
       if(!v->isLeaf()){
         Entry& max_mast = operator[]({u_po, v_po});
         matching_binary(*u, *v, max_mast); // TODO: enable non-binary
-        //cout << max_mast << " from matching, ";
+        //cout << max_mast << " from matching the sons "<<stid(u->getSon(0))<<" & "<<stid(u->getSon(1));
         for(const MyNode& u_child: get_children(*u))
           update_entry(max_mast, u_child.getInfos().po_num, v_po, {u_child.getInfos().po_num, -1});
         for(const MyNode& v_child: get_children(*v)) 
@@ -162,21 +162,21 @@ public:
     } else if(ti.from_matching()){
       // if the best MAST for p and q comes from matching their children, recurse to each matched pair
       const MyNode* const u = T1.node_by_po_num(p);
-      //unsigned size_before = result.size();
+//unsigned size_before = result.size();
       trace(result, u->getSon(0)->getInfos().po_num, ti.first);
-      //unsigned size_middle = result.size();
-      //cout << "level ["<<p<<", "<<q<<"]: (1) gained "<<size_middle-size_before<<" leaves from the entry ["<<u->getSon(0)->getInfos().po_num<<", "<<trace.first<<"]"<<endl;
+//unsigned size_middle = result.size();
+//cout << "level ["<<p<<", "<<q<<"]: (1) gained "<<size_middle-size_before<<" leaves from the entry ["<<u->getSon(0)->getInfos().po_num<<", "<<ti.first<<"]"<<endl;
       trace(result, u->getSon(1)->getInfos().po_num, ti.second);
-      //unsigned size_end = result.size();
-      //cout << "level ["<<p<<", "<<q<<"]: (2) gained "<<size_end-size_middle<<" leaves from the entry ["<<u->getSon(1)->getInfos().po_num<<", "<<trace.second<<"]"<<endl;
+//unsigned size_end = result.size();
+//cout << "level ["<<p<<", "<<q<<"]: (2) gained "<<size_end-size_middle<<" leaves from the entry ["<<u->getSon(1)->getInfos().po_num<<", "<<ti.second<<"]"<<endl;
     } else{
       // in all other cases, the TraceItem tells us where to go next
-      //const unsigned size_before = result.size();
+//const unsigned size_before = result.size();
       const unsigned new_u = (ti.first == -1) ? p : ti.first;
       const unsigned new_v = (ti.second == -1) ? q : ti.second;
       trace(result, new_u, new_v);
-      //const unsigned size_end = result.size();
-      //cout << "level ["<<p<<", "<<q<<"]: gained "<<size_end-size_before<<" leaves from the entry ["<<trace.first<<", "<<trace.second<<"]"<<endl;
+//const unsigned size_end = result.size();
+//cout << "level ["<<p<<", "<<q<<"]: gained "<<size_end-size_before<<" leaves from the entry ["<<ti.first<<", "<<ti.second<<"]"<<endl;
     }
   }
 

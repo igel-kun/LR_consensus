@@ -12,15 +12,15 @@ using namespace bpp;
 //! a 2d vector assigning a pair of PREORDER NUMBERS to a set of STIDs such that the three leaves form a conflict
 typedef symmetric_vector2d<unordered_set<unsigned> > MatrixTriplets;
 
-void add_conflict(MatrixTriplets& trip, const unsigned x, const unsigned y, const unsigned z)
+void add_triple(MatrixTriplets& trip, const unsigned x, const unsigned y, const unsigned z)
 {
   trip[{x, y}].insert(z);
 }
 
-bool is_conflict(const MatrixTriplets& trip, const unsigned x, const unsigned y, const unsigned z)
+bool is_not_triple(const MatrixTriplets& trip, const unsigned x, const unsigned y, const unsigned z)
 {
   const auto& conflict_set = trip[{x ,y}];
-  return conflict_set.find(z) != conflict_set.end();
+  return conflict_set.find(z) == conflict_set.end();
 }
 
 /*

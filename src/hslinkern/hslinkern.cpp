@@ -4,8 +4,8 @@
 
 using namespace std;
 
-Hypergraph kernelize(const Hypergraph &G, const Graphstats &s, unsigned int k) {
-  Hypergraph H;
+Hypergraph* kernelize(const Hypergraph &G, const Graphstats &s, unsigned int k) {
+  Hypergraph* H = new Hypergraph();
 
 //  cout << endl << "... computing kernel for k = " << k << " ..." << endl;
   
@@ -16,7 +16,7 @@ Hypergraph kernelize(const Hypergraph &G, const Graphstats &s, unsigned int k) {
     foreach_intersection(G, *i, s, lt);
     if(lt.yes) {
       add_petal addp(*i);
-      H.push_back(*i);
+      H->push_back(*i);
       foreach_intersection(G, *i, s, addp);
       //      foreach_intersection(G, *i, s, unforbid);
       // cout << "petals " << k+1 << " for ";
@@ -30,8 +30,9 @@ Hypergraph kernelize(const Hypergraph &G, const Graphstats &s, unsigned int k) {
     }
 
     if(lookup(Edge())->petals > k) {
-      cout << "No-instance" << endl;
-      break;
+      //cout << "No-instance" << endl;
+      delete H;
+      return NULL;
     }
   }
   return H;

@@ -52,25 +52,26 @@ MyTree* mastRL(MyTree& T0,
   //cout << "and (index "<<max_dist_index<<", distance "<<max_dist_to_T0<<")"<<endl;
   //distant_tree.pretty_print();
   // step 2: construct disagreement kernel between T0 and Ti
-  const set<StId> kernel = disagreement_kernel(T0, distant_tree, max_dist);
+  const set<StId>* const kernel = disagreement_kernel(T0, distant_tree, max_dist);
 
-  // step 3: enumerate all first (LPR-) steps on the way from T0 to a solution and recurse for each of them
-  //cout << "---- level: "<<max_moves_in_T0<<" ---> kernel: " << kernel <<endl;
-  for(const StId& x: kernel){
-    const CandidateFactory fac(T0, distant_tree, x, max_dist, max_moves_in_T0);
-    //cout << "===== LEVEL: "<<max_moves_in_T0<<" ==== kernel leaf: "<< x<<" ====== "<<fac.size()<<" candidates ====="<<endl;
-    for(MyTree& candidate: fac){
-      //cout << "candidate: "<<endl;
-      //candidate.pretty_print();
+  if(kernel){
+    // step 3: enumerate all first (LPR-) steps on the way from T0 to a solution and recurse for each of them
+    //cout << "---- level: "<<max_moves_in_T0<<" ---> kernel: " << *kernel <<endl;
+    for(const StId& x: *kernel){
+      const CandidateFactory fac(T0, distant_tree, x, max_dist, max_moves_in_T0);
+      //cout << "===== LEVEL: "<<max_moves_in_T0<<" ==== kernel leaf: "<< x<<" ("<<T0[x]->getName()<<") ====== "<<fac.size()<<" candidates ====="<<endl;
+      for(MyTree& candidate: fac){
+        //cout << "candidate: "<<endl;
+        //candidate.pretty_print();
 #warning TODO: cache-check here if we have already seen this candidate with at least this distance
-      MyTree* solution = mastRL(candidate, trees, max_dist, max_moves_in_T0 - 1);
-      if(solution != NULL) {
-        //cout << "found a solution!"<<endl;
-        return solution;
-      } else;// cout << "no solution"<<endl;
-    }
-  }
-
+        MyTree* solution = mastRL(candidate, trees, max_dist, max_moves_in_T0 - 1);
+        if(solution != NULL) {
+          //cout << "found a solution!"<<endl;
+          return solution;
+        } else;// cout << "no solution"<<endl;
+      }// for each candidate produced by regrafting x
+    }// for each node x in the kernel
+  }// if the kernelization didn't conclude that it's a no-instance
   return NULL;
 }
 

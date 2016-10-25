@@ -223,15 +223,13 @@ class CandidateFactory
     // here, Xm is actually Xm' in the paper, but we'll add x later to make it Xm
     list<StId> Xm;
     // to compute Xm, invert mast_list, making use of the fact that mast_list is in postorder with respect to T0
-    
     auto mast_list_iter = mast_list.begin();
-    for(const auto& u: T0->postorder_traversal()) {
-      if(u.isLeaf()) {
-        if((mast_list_iter == mast_list.end()) || (stid(&u) != *mast_list_iter)){
-          //cout << "adding stid "<<stid(&u)<<" to Xm"<<endl;
-          Xm.push_back(stid(&u));
-        } else ++mast_list_iter;
-      }
+    for(unsigned i = 0; i < T0->num_leaves(); ++i){
+      const StId id = stid(T0->leaf_by_po_num(i));
+      if((mast_list_iter == mast_list.end()) || (id != *mast_list_iter)){
+        //cout << "adding stid "<<stid(&u)<<" to Xm"<<endl;
+        Xm.push_back(id);
+      } else ++mast_list_iter;
     }
     
     //cout << "getting Tm=T0-Xm"<<endl;

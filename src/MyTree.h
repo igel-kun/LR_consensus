@@ -655,13 +655,13 @@ public:
 				for(unsigned i = cladeA.first;i <= cladeA.second; i++){
 					for(unsigned j = cladeB.first;j < cladeB.second; j++){
 						for(unsigned z = 0; z < cladeCN.first; ++z)
-								add_conflict(Triplets, i, j, stid(leaves_po[z]));
+								add_triple(Triplets, i, j, stid(leaves_po[z]));
 						for(unsigned z = cladeCN.second + 1; z < num_leaves(); ++z)
-								add_conflict(Triplets, i, j, stid(leaves_po[z]));
-					}
-				}
-			}
-		}
+								add_triple(Triplets, i, j, stid(leaves_po[z]));
+					}// for all leaves j in the clade of B
+				}// for all leaves i in the clade of A
+			}// for each child B that is right of A
+		}// for each child A of the current node
 	}
 
   //! gets all conflicting triples
