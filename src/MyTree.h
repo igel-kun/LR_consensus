@@ -3,9 +3,9 @@
 #ifndef MYTREE_H_
 #define MYTREE_H_
 
-
-#include "rmq/lca.hpp"
-#include "nearest_lower.hpp"
+#include <iterator>
+#include <map>
+#include <list>
 
 #include <Bpp/Phyl/Io/IoTree.h>
 #include <Bpp/Phyl/Io/Newick.h>
@@ -13,64 +13,40 @@
 #include <Bpp/Phyl/TreeExceptions.h>
 #include <Bpp/Phyl/TreeTemplateTools.h>
 
+#include "utils.h"
+#include "rmq/lca.hpp"
+#include "nearest_lower.hpp"
+#include "tree_iters.h"
+
 #include "NodeInfos.h"
 #include "MatrixTriplets.h"
-#include <iterator>
-#include <unordered_map>
+
 
 using namespace bpp;
 
 using namespace std;
 
-typedef NodeTemplate<NodeInfos> MyNode;
+typedef map<string, const MyNode*> LeafAssociation;
 
 // forward declaration of MyTree
 class MyTree;
 
 
-// a class used to iterate over the children of a node, until Bio++ manages to return a const vector<NodeTemplate<NodeInfos>*>& for us...
-template<class NodeType>
-struct _ChildIterator{
-  NodeType& node;
-  unsigned index;
+template<class NodeType, class Iter>
+struct _Traversal
+{
+  NodeType* root;
 
-  _ChildIterator(NodeType& _node, const unsigned _index = 0):
-    node(_node), index(_index)
-  {}
-
-  //! increment operator
-  _ChildIterator& operator++() { ++index; return *this; }
-  //! post-increment
-  _ChildIterator operator++(int) { unsigned i = index; ++(*this); return _ChildIterator(node, i); }
-  //! addition
-  _ChildIterator operator+(const int& j) const { return _ChildIterator(node, index + j); }
-  //! dereferece
-  NodeType& operator*() { return *node[index]; }
-  NodeType* operator->() { return node[index]; }
-  //! comparison
-  bool operator!=(const _ChildIterator& it) { return index != it.index; }
+  _Traversal(NodeType* _r): root(_r) {}
+  Iter begin() const { return Iter(root); }
+  Iter end() const { return Iter(); }
 };
-using ChildIterator = _ChildIterator<MyNode>;
-using ChildConstIterator = _ChildIterator<const MyNode>;
-// once Bio++ comes to its sences, replace this by a const vector<NodeTemplate<NodeInfos>*>
-struct ConstChildren{
-  const MyNode& node;
-  const size_t _size;
 
-  ConstChildren(const MyNode& _node, const size_t _max): node(_node), _size(_max)   {}
-  ChildConstIterator begin() const { return ChildConstIterator(node); }
-  ChildConstIterator end() const { return ChildConstIterator(node, _size); }
-  size_t size() const {return _size; }
-};
-struct Children{
-  MyNode& node;
-  const size_t _size;
+using PreOrderTraversal = _Traversal<MyNode, PreOrderIterator>;
+using PreOrderConstTraversal = const _Traversal<const MyNode, PreOrderConstIterator>;
+using PostOrderTraversal = _Traversal<MyNode, PostOrderIterator>;
+using PostOrderConstTraversal = const _Traversal<const MyNode, PostOrderConstIterator>;
 
-  Children(MyNode& _node, const size_t _max): node(_node), _size(_max)   {}
-  ChildIterator begin() { return ChildIterator(node); }
-  ChildIterator end() { return ChildIterator(node, _size); }
-  size_t size() const {return _size; }
-};
 
 
 
@@ -86,37 +62,86 @@ struct DepthCompare{
 
 
 
+// a centroid path class, represented by its topmost (first) and botommost vertex (second)
+struct CentroidPath: public pair<MyNode*, MyNode*>
+{
+  MyNode* get_root() const { return first; }
+  MyNode* get_leaf() const { return second; }
+  void set_root(MyNode* node) { first = node; }
+  void set_leaf(MyNode* node) { second = node; }
+
+  //! return whether a node is in this centroid path
+  bool contains(const MyNode* node) const
+  {
+    return node->getInfos().cp_num == first->getInfos().cp_num;
+  }
+
+  list<const MyNode*> get_nodes_top_down() const
+  {
+    const MyNode* node = second;
+    list<const MyNode*> result(1, node);
+    while(node != first){
+      node = node->getFather();
+      result.push_front(node);
+    }
+    return result;
+  }
+};
+
+
+// get the child of v that is not in the same centroid path as v
+const MyNode* get_non_cp_child(const MyNode* const v)
+{
+  assert(!v->isLeaf());
+  if(v->getInfos().cp_num != v->getSon(0)->getInfos().cp_num)
+    return v->getSon(0);
+  else
+    return v->getSon(1);
+}
+
+// compute the size of the subtree rooted at the child of v that is not in the same centroid path as v
+unsigned compute_nj(const MyNode* v)
+{
+  return v->isLeaf() ? 1 : get_non_cp_child(v)->getInfos().subtree_size;
+}
+
+
 
 
 class MyTree: public TreeTemplate<MyNode> 
 {
 protected:
-	vector<MyNode*> correspondanceId;
-	vector<MyNode*> leavesPreordered;
+	vector<MyNode*> StId_to_node;
+	vector<MyNode*> leaves_po;
+  vector<CentroidPath> centroid_paths;
 
 	//vector< unsigned > centroidPaths ;
 
-  //! copy the StIds of the nodes in T, assuming we are a supertree of T
+  //! copy the StIds of the nodes in T, assuming that we agree with T on our common leaves
   /** Here, "supertree" is in the phylogenetic sense (that is, modulo degree-2 nodes)
-   * The return value is the new StId of "root", unless exactly one subtree of "root" in our tree is represented in T, in which case the StId of the root of this subtree is returned. This allows skipping over indeg-1 & outdeg-1 nodes
+   * The return value is the new StId of "root", unless exactly one subtree of "root" in our tree is represented in T,
+   *    in which case the StId of the root of this subtree is returned. This allows skipping over indeg-1 & outdeg-1 nodes
    * name_to_leaf should associate leaf names to the leaves in T **/
-  StId sync_stids_from_leaf_names(const MyTree& T, MyNode& root, const unordered_map<string, const MyNode*>& name_to_leaf)
+  StId sync_stids_from_leaf_names(const MyTree& T, MyNode& root, const LeafAssociation& name_to_leaf)
   {
     StId my_stid;
     if(root.isLeaf()){
       const auto node_iter = name_to_leaf.find(root.getName());
       if(node_iter == name_to_leaf.end()){
-        // if this leaf does not exist in T, create a new StId at the end of correspondanceId
+        // if this leaf does not exist in T, create a new StId at the end of StId_to_node
         return setNewStId(&root);
-      } else my_stid = node_iter->second->getInfos().getStId();
+      } else my_stid = stid(node_iter->second);
     } else{
       // get the children of root that are represented in T
-      vector<MyNode*> childs_in_T;
+      vector<const MyNode*> childs_in_T;
       childs_in_T.reserve(root.getNumberOfSons());
       for(auto& child: get_children(root)){
         const StId child_id = sync_stids_from_leaf_names(T, child, name_to_leaf);
         // if the child is represented in T
-        if(child_id < T.correspondanceId.size()) childs_in_T.push_back(T.correspondanceId.at(child_id));
+        if(child_id < T.StId_to_node.size()) {
+          childs_in_T.push_back(T[child_id]);
+          assert(stid(childs_in_T.back()) == child_id);
+        }
       }
       switch(childs_in_T.size()){
         case 0:
@@ -125,35 +150,24 @@ protected:
         case 1:
           // if only one child is represented in T, then set a new StId, but return this childs StId; this skips over degree-2-paths
           setNewStId(&root);
-          return childs_in_T.front()->getInfos().getStId();
+          return stid(childs_in_T.front());
         default:
           // if at least two children are represented in T, copy the StId of their father in T
-          my_stid = childs_in_T.front()->getFather()->getInfos().getStId();
+          my_stid = stid(childs_in_T.front()->getFather());
       }
     }
-    root.getInfos().setStId(my_stid);
-    correspondanceId[my_stid] = &root;
+    stid(&root) = my_stid;
+    StId_to_node[my_stid] = &root;
     return my_stid;
   }
 
 public:
  	MyTree(): TreeTemplate<MyNode>(){}
- 	MyTree(MyNode& root): TreeTemplate<MyNode>(&root) {}
 
-  //! copy StIds from T, assuming that the set of leaf-labels of T is a subset of ours
-  /** NOTE: if the topoly of T differs from our own, the behavior is undefined **/
-  void sync_stids_from(const MyTree& T)
-  {
-    // step 1: associate leaves
-    unordered_map<string, const MyNode*> name_to_leaf;
-    for(const auto& T_leaf: T.getLeaves()) name_to_leaf.emplace(T_leaf->getName(), T_leaf);
+  // copy the subtree rooted at _root from somewhere, StIds are NOT copied
+  MyTree(MyNode* _root): TreeTemplate<MyNode>(TreeTemplateTools::cloneSubtree<MyNode>(*_root)) {}
 
-    // copy the StIds bottom-up from the corresponding leaves
-    correspondanceId.resize(T.correspondanceId.size());
-    sync_stids_from_leaf_names(T, *getRootNode(), name_to_leaf);
-  }
-
-  //! copy the given tree and synchronize StIds, setting-up correspondanceId
+  //! copy the given tree and synchronize StIds, setting-up StId_to_node
   MyTree(const MyTree& T): TreeTemplate<MyNode>(T)
   {
     // we like to use Bpp's TreeTemplate cppy constructor, but it doesn't copy infos because... reasons
@@ -161,29 +175,101 @@ public:
     sync_stids_from(T);
   }
 
- 	virtual ~MyTree(){
-    if(lca_oracle) delete lca_oracle;
- 	}
+ 	virtual ~MyTree(){ if(lca_oracle) delete lca_oracle; }
 
   bool is_root(const MyNode& node) const
   {
     return TreeTemplateTools::isRoot(node);
   }
 
-  // get iterable children (this job should have been done by NodeTemplate<>...)
-  ConstChildren get_children(const MyNode& node) const
+  //! return the number of nodes, assuming the node infos are set up
+  size_t num_nodes() const { assert(node_infos_set_up()); return getRootNode()->getInfos().subtree_size; }
+  //! return the number of leaves, assuming the node infos are set up
+  size_t num_leaves() const { return leaves_po.size(); }
+  //! return the size of the StId storage
+  size_t num_stids() const { return StId_to_node.size(); }
+
+
+  //! compute an association of leaf-names to leaf-pointers
+  void compute_leaf_association(LeafAssociation& name_to_leaf) const
   {
-    return ConstChildren(node, node.getNumberOfSons());
-  }
-  Children get_children(MyNode& node) const
-  {
-    return Children(node, node.getNumberOfSons());
-  }
-  Children get_children(const StId& id) const
-  {
-    return get_children(*correspondanceId[id]);
+    for(const auto& leaf: getLeaves()) name_to_leaf.emplace(leaf->getName(), leaf);
   }
 
+  //! copy StIds from T, assuming that we agree on T on our common leaves (that is, our subtrees induced by the common leaves are isomorphic)
+  /** NOTE: if the topoly of T differs from our own, the behavior is undefined **/
+  void sync_stids_from(const MyTree& T, LeafAssociation* name_to_leaf = NULL)
+  {
+    const bool delete_asso = (name_to_leaf == NULL);
+    if(delete_asso) {
+      // step 1: associate leaves
+      name_to_leaf = new LeafAssociation();
+      T.compute_leaf_association(*name_to_leaf);
+    }
+
+    // copy the StIds bottom-up from the corresponding leaves
+    StId_to_node.resize(T.StId_to_node.size());
+    sync_stids_from_leaf_names(T, *getRootNode(), *name_to_leaf);
+
+    if(delete_asso) delete name_to_leaf;
+  }
+
+  //! setup StIds such that all leaves with the same label have the same StIds; all other StIds are (more or less) random
+  void sync_leaf_stids(const MyTree& T, LeafAssociation* name_to_leaf = NULL)
+  {
+    const bool delete_association = (name_to_leaf == NULL);
+    if(delete_association){
+      name_to_leaf = new LeafAssociation();
+      T.compute_leaf_association(*name_to_leaf);
+    }
+
+    // for each leaf, switch the StId's of that leaf and the node with the StId that we want
+    for(MyNode* leaf: getLeaves()){
+      const StId stid_want = stid(name_to_leaf->at(leaf->getName()));
+      const StId stid_have = stid(leaf);
+      
+      if(stid_want != stid_have){
+        //cout << "swapping stid("<<leaf->getName()<<")="<<stid_have<<" with "<<stid_want<<" (parent stid "<<stid(name_to_leaf->at(leaf->getName())->getFather())<<"), storage size is "<<StId_to_node.size()<<endl;
+        // make sure there's enough room in the StId_to_node vector
+        if(StId_to_node.size() > stid_want) {
+          MyNode* swap_target = StId_to_node[stid_want];
+          if(swap_target && (stid(swap_target) == stid_want)){
+            stid(swap_target) = stid_have;
+            StId_to_node[stid_have] = swap_target;
+          }
+        } else {
+          StId_to_node.resize(stid_want + 1);
+          StId_to_node[stid_have] = NULL;
+        }
+        StId_to_node[stid_want] = leaf;
+        stid(leaf) = stid_want;
+      }
+    }
+
+    if(delete_association) delete name_to_leaf;
+  }
+  
+  ConstChildren get_children_by_StId(const StId& id) const
+  {
+    return get_children((const MyNode&)*StId_to_node[id]);
+  }
+  // get iterable traversals
+  PreOrderConstTraversal preorder_traversal() const
+  {
+    return PreOrderConstTraversal(getRootNode());
+  }
+  PreOrderTraversal preordero_traversal()
+  {
+    return PreOrderTraversal(getRootNode());
+  }
+  PostOrderConstTraversal postorder_traversal() const
+  {
+    return PostOrderConstTraversal(getRootNode());
+  }
+  PostOrderTraversal postorder_traversal()
+  {
+    return PostOrderTraversal(getRootNode());
+  }
 
   // return a copy of us that misses the vertex with the given StId
   MyTree* operator-(const StId x) const 
@@ -204,22 +290,25 @@ public:
   // delete node from the tree
   void operator-=(const StId x)
   {
-    if(x < correspondanceId.size()) throw NodeNotFoundException("operator-(): could't find node by StId", x);
-    MyNode* x_node = correspondanceId[x];
-    correspondanceId[x] = NULL;
+    if(x >= StId_to_node.size()) throw NodeNotFoundException("operator-=(): could't find node by StId: ", x);
+    MyNode* x_node = StId_to_node[x];
+    StId_to_node[x] = NULL;
     if(x_node->hasFather()) {
       MyNode* parent = x_node->getFather();
 
+      // for some reason, Bio++ decided that removing x_node from the parent child-list causes x_node to become a leaf...
+      const bool x_is_leaf = x_node->isLeaf();
+
       parent->removeSon(x_node);
-      if(!x_node->isLeaf()){
-        for(auto& child: get_children(*x_node)){
+      if(!x_is_leaf){
+        for(auto& child: get_children(*x_node)){ 
           child.removeFather();
           parent->addSon(&child);
         }
       } else operator-=(parent);
     } else {
       // x_node is the root
-      if(x_node->getNumberOfSons() > 1) throw Exception("trying to remove root with multiple children");
+      if(x_node->getNumberOfSons() != 1) throw Exception("can only remove the root if it has exactly one child");
       MyNode* child = x_node->getSon(0);
       child->removeFather();
       x_node->removeSon(child);
@@ -228,142 +317,110 @@ public:
     delete x_node;
   }
 
-  void operator-=(const MyNode* node)
+  void operator-=(const MyNode* const node)
   {
-    operator-=(node->getInfos().getStId());
+    operator-=(stid(node));
   }
 
   // graft a new leaf above the given node and return a pointer to it
-  MyNode* graft_leaf_above(MyNode* node)
+  MyNode* graft_leaf_above(MyNode* const node)
   {
-    assert(node->hasFather()); // can't graft above the root
-    MyNode* old_parent = node->getFather();
-
-    // create the leaf and its parent
-    MyNode* new_parent = new MyNode();
+#warning TODO: getNextId() is O(n log n), find something more efficient! For example, consolidate ids on copy constructing and then just take the next biggest
+    //NOTE: getNextId() is VERY volatile, it WILL crash if there are two nodes with the same id, so we have to be careful
+    MyNode* const new_parent = new MyNode(getNextId());
     setNewStId(new_parent);
-    
-    MyNode* new_leaf = new MyNode();
+
+    if(!node->hasFather()){
+      //cout << "grafting on top of the root"<<endl;
+      node->addSon(new_parent);
+      rootAt(new_parent);
+    } else {
+      MyNode* const old_parent = node->getFather();
+
+      //cout << "grafting below "<<stid(old_parent)<<endl;
+
+      // remove the edge we're grafting on
+      //NOTE: removeSon() already calls removeFather()
+      old_parent->removeSon((Node*)node);
+
+      // and add the 3 new edges
+      old_parent->addSon(new_parent);
+      new_parent->addSon(node);
+    }
+    MyNode* const new_leaf = new MyNode(getNextId());
     setNewStId(new_leaf);
-
-    // remove the edge we're grafting on
-    old_parent->removeSon(node);
-    node->removeFather();
-
-    // and add the 3 new edges
-    old_parent->addSon(new_parent);
-    new_parent->addSon(node);
     new_parent->addSon(new_leaf);
-    
     return new_leaf;
   }
 
   MyNode* graft_leaf_above(const StId node_id)
   {
-    return graft_leaf_above(correspondanceId[node_id]);
+    return graft_leaf_above(StId_to_node[node_id]);
+  }
+
+  //! setup traversal numbers, subtree sizes, and StIds
+  // if requested, returns the vertices in post order; in any case, return our tree to enable chaining preprocessings
+  //NOTE: unset change_StIds to keep StIds in tact
+  template<class Container = vector<MyNode*> >
+  MyTree* setup_node_infos(const bool change_StIds = true, Container* result = NULL)
+  {
+    unsigned count = 0;
+    PostOrderTraversal po = postorder_traversal();
+    leaves_po.clear();
+    if(change_StIds) StId_to_node.clear();
+
+    for(auto u_iter = po.begin(); u_iter.is_valid(); ++u_iter){
+      MyNode& u = *u_iter;
+      NodeInfos& u_info = u.getInfos();
+
+      if(change_StIds) {
+        u_info.stId = count;
+        StId_to_node.push_back(&u);
+      }
+      u_info.subtree_size = 1;
+      u_info.depth = u_iter.current_depth();
+      u_info.po_num = count;
+
+      if(u.isLeaf()){
+        u_info.clade = Clade(leaves_po.size());
+  		  leaves_po.push_back(&u);
+      } else {
+        u_info.clade = u.getSon(0)->getInfos().clade;
+        for(const MyNode& v: get_children(u)){
+          u_info.clade = get_spanning_clade(u_info.clade, v.getInfos().clade);
+          u_info.subtree_size += v.getInfos().subtree_size + 1;
+        }
+      }
+
+      ++count;
+      if(result) result->push_back(&u);
+    }
+    return this;
+  }
+
+  bool node_infos_set_up() const
+  {
+    return !StId_to_node.empty();
   }
 
 
-  unsigned getCorrespondanceLenghtId(){
- 		return correspondanceId.size();
- 	}
- 	
-  void setCorrespondanceLenghtId(unsigned dim){
- 		correspondanceId.resize(dim);
- 	}
-
-  void resetCorrespondanceLenghtId(unsigned dim) {
-    correspondanceId.clear();
- 	}
-
-	void setNodeWithStId(MyNode* node, unsigned stId) {
-	 	correspondanceId[stId] = node;
-	}
-
-  //! give a previously unused StId (at the end of correspondanceId) to the node
+  //! give a previously unused StId (at the end of StId_to_node) to the node
   StId setNewStId(MyNode* node){
-    const StId my_stid = correspondanceId.size();
-    node->getInfos().setStId(my_stid);
-    correspondanceId.push_back(node);
+    const StId my_stid = StId_to_node.size();
+    stid(node) = my_stid;
+    StId_to_node.push_back(node);
     return my_stid;
   }
 
-  void setup_StIds_subtree(MyNode* subtree_root, unsigned& offset){
-    subtree_root->getInfos().setStId(offset);
-    correspondanceId[offset] = subtree_root;
-    std::cout << "setting StId "<<offset<<" to node @"<<subtree_root<<std::endl;
-    for(auto& child: get_children(*subtree_root))
-      setup_StIds_subtree(&child, ++offset);
-  }
-  // give stIds to the nodes of the tree starting with stId offset
-  // if avoid_leaves is set, then do not give stIds to leaves
-  void setup_StIds() {
-    correspondanceId.resize(getNumberOfNodes());
-    unsigned zero = 0;
-    setup_StIds_subtree(getRootNode(), zero);
-	}
-
-	MyNode* getNodeWithStId(unsigned stId) const{
-	 	return correspondanceId[stId];
-	}
-
-	void setDepth(MyNode& node) const {
-	 	if(is_root(node))
-	 		node.getInfos().setDepth(0); //root has depth 0
-	 	else
-	 		node.getInfos().setDepth(node.getFather()->getInfos().getDepth() + 1); //otherwise depth of father +1
-
-    for(auto& child: get_children(node)) setDepth(child); // recursive calls for sons
-	}
-
-	void setNumberOfDescendents(MyNode& node) const{
-    unsigned count = 0;
-    for(auto& child: get_children(node)){
-      setNumberOfDescendents(child); // recursive calls for sons
-      count += child.getInfos().getNumberOfDescendents() + 1; //adding up all the descendants of sons + sons
-    }
-    node.getInfos().setNumberOfDescendents(count);
+  //! translate StId to node using []
+  MyNode* operator[](const StId id) const
+  {
+    return StId_to_node[id];
   }
 
-	void setDepthAndNumberOfDescendents() {
-    setDepth(*getRootNode());
-    setNumberOfDescendents(*getRootNode());
-  }
-
-  //construct the centroid decomposition of a tree
-	void getCentroidDecompostion(MyNode& node, unsigned partition_number) const {
-    node.getInfos().setCentroidPathNumber(partition_number);
-    unsigned max_desc = 0;
-    unsigned other_partition_numbers = partition_number;
-    MyNode* chosen_child = NULL;
-    // get the child with the highest number of descendants
-    for(auto& child: get_children(node)){
-      unsigned num_desc = child.getInfos().getNumberOfDescendents();
-      if(num_desc > max_desc){
-        if(chosen_child)
-          getCentroidDecompostion(*chosen_child, ++other_partition_numbers); // the other start new centroid paths
-        chosen_child = &child;
-        max_desc = num_desc;
-      } else getCentroidDecompostion(child, ++other_partition_numbers); // the other start new centroid paths
-    }
-    //the child with the higher number of sons stay in the same centroid path than the father (ties broken arbitrarly)
-    getCentroidDecompostion(*chosen_child, partition_number);
-  }
-
-  void getCentroidDecompostion() {
-    getCentroidDecompostion(*getRootNode(), 0);
-  }
-
-	void setPreOrder(MyNode& node, unsigned& preorder_number) const {
-    for(auto& child: get_children(node))
-      setPreOrder(child, preorder_number);
-		
-		if(node.isLeaf()) node.getInfos().setPreOrder(++preorder_number);
-  }
-
-  void setPreOrder() {
-    unsigned zero =0;
-	 	setPreOrder(*getRootNode(), zero);
+  MyNode* leaf_by_po_num(const unsigned po_num) const
+  {
+    return leaves_po[po_num];
   }
 
 	//not used for now
@@ -380,7 +437,7 @@ public:
 	vector<unsigned> getLeavesStId(MyNode& node) const {
 	   	vector<unsigned> stId;
 	  	if(node.isLeaf()){
-	     	stId.push_back(node.getInfos().getStId());
+	     	stId.push_back(stid(&node));
 	  	 }
 	  	 for(unsigned i = 0; i < node.getNumberOfSons(); i++){
 	     	vector<unsigned> subStId = getLeavesStId(* node.getSon(i));
@@ -395,7 +452,7 @@ public:
 protected:
   //! access node stId's
   struct access_stId {
-    unsigned operator[](const MyNode& u) const { return u.getInfos().getStId(); }
+    unsigned operator[](const MyNode& u) const { return stid(&u); }
   };
   struct access_Id {
     unsigned operator[](const MyNode& u) const { return u.getId(); }
@@ -420,9 +477,14 @@ protected:
 
 public:
   // preprocess can either be called before getLCA or getLCA will call it if it had not been called
-  void lca_preprocess()
+  //NOTE: we'll return ourself in order to allow chaining preprocessings
+  MyTree* lca_preprocess(const bool force = true)
   {
-    lca_oracle = new LCA_Oracle(*getRootNode(), correspondanceId.size(), access_Id(), access_children());
+    if(!lca_oracle || force) {
+      if(lca_oracle) delete lca_oracle;
+      lca_oracle = new LCA_Oracle(*getRootNode(), StId_to_node.size(), access_Id(), access_children());
+    }
+    return this;
   }
 
   const MyNode* getLCA(const MyNode& u, const MyNode& v) const
@@ -430,44 +492,44 @@ public:
     if(!lca_oracle) throw TreeException("LCA query without preprocessing", this);
     return lca_oracle->query(u, v);
   }
-  const MyNode* getLCA(const MyNode * u, const MyNode * v) const
+  const MyNode* getLCA(const MyNode* u, const MyNode * v) const
   {
     if(!lca_oracle) throw TreeException("LCA query without preprocessing", this);
     return lca_oracle->query(*u, *v);
   }
 
-
   //======================= computing subtree induced by leaves ===============
   // restricts the given tree to the given leaves (given by StId)
   // NOTE: assumptions:
-  //  1. idsLeaves is ordered with respect to a pre-order
+  //  1. idsLeaves is ordered with respect to a pre- or post-order
   //  2. all depths and StIds have been set up
-  MyTree* induced_subtree(const vector<unsigned>& idsLeaves) const 
+  template<class IdContainer = vector<unsigned> > // we also accept a list of stids
+  MyTree* induced_subtree(const IdContainer& idsLeaves) const 
   {
     assert(!idsLeaves.empty());
     
-
     // Step 1: get the IDs of all nodes in the restricted tree
     // get all LCA in tree above the leaves in idsLeaves and construct the new nodes
     // NOTE: by the assumed ordering of idsLeaves, no LCA is missed
     vector<unsigned> ids; //holds the vertex IDs of all vertices in the induced subtree
     ids.reserve(2 * idsLeaves.size());
-    for(unsigned y = 0; y < idsLeaves.size() - 1; y++){
-      const unsigned y_id = idsLeaves[y];
-      const MyNode* const y_node(getNodeWithStId(y_id));
+    for(auto y_iter = idsLeaves.begin();;){
+      const unsigned y_id = *y_iter;
+      const MyNode* const y_node(StId_to_node[y_id]);
       ids.push_back(y_id);
 
-      const MyNode* const nextNode(getNodeWithStId(idsLeaves[y + 1]));
-      unsigned LCA_id = getLCA(y_node, nextNode)->getInfos().getStId(); //internal nodes
-      ids.push_back(LCA_id);
+      if(++y_iter != idsLeaves.end()) {
+        const MyNode* const nextNode(StId_to_node[*y_iter]);
+        const StId lca_id = stid(getLCA(*y_node, *nextNode));
+        ids.push_back(lca_id);
+      } else break;
     }
-    ids.push_back(*idsLeaves.rbegin());
-
+    //cout << "ids in the induced subtree: "<<ids<<endl;
 
     // Step 2: construct the restricted tree and reserve space for the correspondance
     MyTree* restrictedTree = new MyTree();
     // reserve enough space in the corresponding-ID vector for all ids
-    restrictedTree->setCorrespondanceLenghtId(*std::max_element(ids.begin(), ids.end()));
+    restrictedTree->StId_to_node.resize(*std::max_element(ids.begin(), ids.end()) + 1);
 
 
     // Step 3: create all vertices according to the ids and set their correspondance in restrcitedTree
@@ -475,10 +537,10 @@ public:
     nodes.reserve(2 * idsLeaves.size());
     for(unsigned i = 0; i < ids.size(); ++i){
       const unsigned y_id = ids[i];
-      const MyNode* const y_node(getNodeWithStId(y_id));
-      MyNode* newNode = new MyNode();
-      newNode->getInfos().setStId(y_id);
-      restrictedTree->setNodeWithStId(newNode, y_id);
+      const MyNode* const y_node(StId_to_node[y_id]);
+      MyNode* newNode = new MyNode(y_node->getId());
+      stid(newNode) = y_id;
+      restrictedTree->StId_to_node[y_id] = newNode;
       if(y_node->hasName())
         newNode->setName(y_node->getName());
       nodes.push_back(newNode);
@@ -505,8 +567,8 @@ public:
         restrictedTree->setRootNode(nodes[y]);
         //restrictedTree->resetNodesId();
       } else{
-        const unsigned left_depth = getNodeWithStId(ids[left_id_index])->getInfos().getDepth();
-        const unsigned right_depth = getNodeWithStId(ids[right_id_index])->getInfos().getDepth();
+        const unsigned left_depth = StId_to_node[ids[left_id_index]]->getInfos().depth;
+        const unsigned right_depth = StId_to_node[ids[right_id_index]]->getInfos().depth;
         if(right_depth < left_depth){
           v_left->addSon(nodes[y]);
         } else{
@@ -520,84 +582,112 @@ public:
 
   }
 
-  /*
   // ====================== output ======================
-  void pretty_print(const MyNode& node, std::ostream& os = std::cout) const
+  void pretty_print(const string prefix, const MyNode* const root, const bool print_id = false, std::ostream& os = std::cout) const
   {
-    const unsigned num_desc = node.getInfos().getNumberOfDescendents();
-    char to_print = ' ';
-    const auto children = get_children(node);
-    for(ChildConstIterator child_it = children.cbegin(); child_it != children.cend(); ++child_it){
-      const unsigned num_child_desc = child_it->getInfos().getNumberOfDescendants();
-      for(unsigned i = 0; i < num_child_desc; ++i) os << to_print;
-
-//      to_print = 
-    }
+    if(!root->isLeaf()){
+      const string rootid = to_string(stid(root)) + (string)(print_id ? " [" + to_string(root->getId()) + "]" : "");
+      os << "-" << rootid;
+      string new_prefix = prefix + string(rootid.length(), ' ');
+      for(unsigned i = 0; i < root->getNumberOfSons() - 1; ++i){
+        pretty_print(new_prefix + '|', root->getSon(i), print_id, os);
+        os << new_prefix + '+';
+      }
+      pretty_print(new_prefix + ' ', root->getSon(root->getNumberOfSons()-1), print_id, os);
+    } else os << "-" << stid(root)<<" (" << (string)(root->hasName() ? root->getName() : "") << ")" + (string)(print_id ? " [" + to_string(root->getId()) + "]" : "")<<std::endl;
+    
   }
-  */
 
-  void pretty_print(std::ostream& os = std::cout) const
+  void pretty_print(std::ostream& os = std::cout, const bool print_id = false) const
   {
+    pretty_print("", getRootNode(), print_id, os);
   }
   
-  //clades stuff
-  
-
-  void setClades(MyNode & currentNode){
-  	if(currentNode.isLeaf()){ // preprocess the clade of a leaf for later
-  	  currentNode.getInfos().setClade(Clade(leavesPreordered.size()));
-  		leavesPreordered.push_back(& currentNode);
-  	} else{
-  		const unsigned startClade = leavesPreordered.size();
-		  for(auto& child: get_children(currentNode))
-      		setClades(child); // recursive calls for sons
-       const unsigned endClade = leavesPreordered.size()-1;
-       currentNode.getInfos().setClade(Clade(startClade, endClade));
-    }  		
-  }
-  
-  void setClades(){
-  	setClades(* getRootNode());
-  }
-  
-
-  //triplets stuff
-  
-
+  // ====================== conflict triples ======================
 	
-  void setTriplets(MatrixTriplets & Triplets, MyNode & currentNode){   
+  void get_triplets(MatrixTriplets& Triplets, const MyNode& current_node) const 
+  {
+		for(auto& child: get_children(current_node)) get_triplets(Triplets, child); // recursive calls
 		
-		for(auto& child: get_children(currentNode))
-      		setTriplets(Triplets, child); // recursive calls for sons
-		
-		const Clade& cladeCN = currentNode.getInfos().getClade();
+		const Clade& cladeCN = current_node.getInfos().clade;
+    const ConstChildren childs = get_children(current_node);
 
-		for(auto childitA = get_children(currentNode).begin();childitA !=get_children(currentNode).end();childitA++){
-			const Clade& cladeA = childitA->getInfos().getClade();
-			for(auto childitB = childitA + 1; childitB !=get_children(currentNode).end();childitB++){
-				const Clade& cladeB= childitB->getInfos().getClade();
+		for(auto childitA = childs.begin(); childitA != childs.end(); ++childitA){
+			const Clade& cladeA = childitA->getInfos().clade;
+			for(auto childitB = childitA + 1; childitB != childs.end(); ++childitB){
+				const Clade& cladeB = childitB->getInfos().clade;
 				
-				for(unsigned int i = cladeA.first;i <= cladeA.second; i++){
-					for(unsigned int j = cladeB.first;j < cladeB.second; j++){
-						for(unsigned int z = 0; z < cladeCN.first; ++z)
-								Triplets.add(* leavesPreordered[i],* leavesPreordered[j], * leavesPreordered[z]);
-						for(unsigned int z = cladeCN.second + 1; z < leavesPreordered.size(); ++z)
-								Triplets.add(* leavesPreordered[i],* leavesPreordered[j], * leavesPreordered[z]);
+				for(unsigned i = cladeA.first;i <= cladeA.second; i++){
+					for(unsigned j = cladeB.first;j < cladeB.second; j++){
+						for(unsigned z = 0; z < cladeCN.first; ++z)
+								add_conflict(Triplets, i, j, stid(leaves_po[z]));
+						for(unsigned z = cladeCN.second + 1; z < num_leaves(); ++z)
+								add_conflict(Triplets, i, j, stid(leaves_po[z]));
 					}
 				}
 			}
 		}
 	}
-	
-	MatrixTriplets * setTriplets(){   
-		MatrixTriplets * Triplets =new MatrixTriplets();
-		Triplets->setDim(correspondanceId.size());
-		setTriplets(* Triplets, * getRootNode());
+
+  //! gets all conflicting triples
+  /** NOTE: this assumes that the clades have been set up
+   */
+	MatrixTriplets* get_triplets() const {
+    assert(!leaves_po.empty());
+
+		MatrixTriplets* Triplets = new MatrixTriplets(num_leaves());
+		get_triplets(*Triplets, *getRootNode());
 		return Triplets;
- }	
- bool isPreprocessed(){
- 	return !leavesPreordered.empty();
- }
+  }	
+
+
+
+  //============================ centroid paths =============================
+  //construct the centroid decomposition of a tree
+	void getCentroidDecompostion(MyNode& node, unsigned partition_number, const bool is_root_of_path = true) {
+    // make centroid_paths fit
+    if(centroid_paths.size() <= partition_number) centroid_paths.resize(partition_number + 1);
+    // set the centroid path of node and, if it's a root, remember that
+    if(is_root_of_path) centroid_paths[partition_number].set_root(&node);
+    node.getInfos().cp_num = partition_number;
+    // recurse unless node is a leaf
+    if(!node.isLeaf()){
+      unsigned max_desc = 0;
+      MyNode* chosen_child = NULL;
+      // get the child with the highest number of descendants
+      for(auto& child: get_children(node)){
+        const unsigned num_desc = child.getInfos().subtree_size;
+        if(num_desc > max_desc){
+          // if we find a new chosen child, recurse into the old chosen child first
+          if(chosen_child){
+            getCentroidDecompostion(*chosen_child, centroid_paths.size()); // the other start new centroid paths
+          }
+          chosen_child = &child;
+          max_desc = num_desc;
+        } else getCentroidDecompostion(child, centroid_paths.size()); // the other start new centroid paths
+      }
+      //the child with the higher number of sons stay in the same centroid path than the father (ties broken arbitrarly)
+      getCentroidDecompostion(*chosen_child, partition_number, false);
+    } else centroid_paths[partition_number].set_leaf(&node);
+  }
+
+  void getCentroidDecompostion() {
+    centroid_paths.clear();
+    // NOTE: there are as many centroid paths in a tree as there are leaves
+    centroid_paths.reserve(StId_to_node.size() / 2); // at most 1/2 of the vertices of the tree are leaves
+    getCentroidDecompostion(*getRootNode(), 0);
+  }
+  unsigned num_centroid_paths() const { return centroid_paths.size(); }
+  const CentroidPath& get_centroid_path(const unsigned i) const { return centroid_paths[i]; }
+
+#define root_of_centroid_path(x) get_centroid_path(x).get_root()
+#define leaf_of_centroid_path(x) get_centroid_path(x).get_leaf()
+
+  MyNode* root_of_centroid_path_of(const MyNode* node) const 
+  { 
+    return centroid_paths[node->getInfos().cp_num].get_root();
+  }
+
 
 };
 
@@ -605,10 +695,62 @@ public:
 template<bool invert>
 bool DepthCompare<invert>::operator()(unsigned u_id, unsigned v_id) const
 {
-  const MyNode* const u = tree.getNodeWithStId(u_id);
-  const MyNode* const v = tree.getNodeWithStId(v_id);
-  return (u->getInfos().getDepth() < v->getInfos().getDepth()) != invert;
+  const MyNode* const u = tree[u_id];
+  const MyNode* const v = tree[v_id];
+  return (u->getInfos().depth < v->getInfos().depth) != invert;
 }
 
+
+
+void collapseEdge(MyTree & tree, MyNode * on) {
+    MyNode * temp = (* on).getFather();
+    MyNode * newNode;
+    unsigned i_max = (* on).getNumberOfSons();  
+    for (unsigned i=0; i< i_max; i++){
+    
+        if(((* on).getSon(0))->hasDistanceToFather() && ( on)->hasDistanceToFather())
+            (* (* on).getSon(0)).setDistanceToFather(((* on).getSon(0))->getDistanceToFather() + ( on)->getDistanceToFather());
+            
+        newNode=(* on).getSon(0);   // we take always the first son...it's always a different one
+        
+        (* on).removeSon((* on).getSon(0));
+        temp->addSon( newNode);
+    } 
+    (* temp).removeSon( on);
+    if((* temp).getNumberOfSons()==1 && (((* temp).hasFather())))   {  //degree ==2... not so good! we have to collapse again
+        collapseEdge(tree, temp);
+    }
+
+};
+
+/* this function reads a list of trees written in a file (path) in a newich format, separed by semicolons and returns a list of MyTree*/
+
+
+vector < MyTree *>  readTrees(const string & path) throw (Exception) {
+    // Checking the existence of specified file
+    
+    ifstream file(path.c_str(), ios::in);
+    //if (! file) { throw IOException ("\nError reading file.\nInvalid options!\nUsage:\n ./physic -s sourceTreeFile -t threshold.\nwhere:\n - sourceTreeFile contains a set of rooted trees in newick format with bootstrap values and possibly edge lengths.\n - threshold indicates bootstrap values under which clades are not considered for building the supertree\n(typically a threshold of 70 can be used when source trees where obtained from 100 bootstrap replicates).\n"); }
+    if (! file) { throw IOException ("\nError reading file.\n"); }
+    
+    vector<MyTree*> trees;
+    string temp, description;
+    while (! file.eof()) {
+        temp = FileTools::getNextLine(file);
+        if(temp.size() != 0){
+            string::size_type index = temp.find(";");
+            if(index == string::npos) throw Exception("readTrees(). Bad format: no semi-colon found.");
+            if(index < temp.size()) {
+                description += temp.substr(0, index + 1);   
+                TreeTemplate<Node> * tree = TreeTemplateTools::parenthesisToTree(description,true);    
+                trees.push_back(new MyTree((MyNode*)(tree->getRootNode())));
+                delete tree;
+                description = temp.substr(index);   
+            } else description += temp;
+        }
+    }
+    file.close();
+    return trees;   
+};
 
 #endif /*MYTREE_H_*/
