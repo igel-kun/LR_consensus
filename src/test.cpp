@@ -8,7 +8,9 @@
 #include "utils.h"
 #include "MyTree.h"
 #include "mastRL.h"
-
+// From PhylLib:
+#include <Bpp/Phyl/Io/IOTree.h>
+#include <Bpp/Phyl/Io/Newick.h>
 using namespace std;
 using namespace bpp;
 
@@ -74,6 +76,10 @@ int main(int argc, char** argv){
   vector<MyTree*> trees;
 	trees = readTrees(argv[1]);
 	unsigned d = atoi(argv[2]);
+	string outputPath = "out.txt";
+	if(argc>3)
+	outputPath= argv[3];
+
 
   // NOTE: to call mastRL, we need the following preprocessing steps:
   // Step 1: seperate a candidate t from the trees
@@ -98,8 +104,12 @@ int main(int argc, char** argv){
   MyTree* mRL = mastRL(*t, trees, d);
 
   cout << "consensus: "<<endl;
-  if(mRL) mRL->pretty_print(); else cout << " none"<<endl;
-
+  //if(mRL) mRL->pretty_print(); else cout << " none"<<endl;
+  
+  if(mRL) {
+	Newick newick;
+  	newick.write(* mRL, outputPath, true);
+}
   
 
   return 0;
