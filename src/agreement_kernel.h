@@ -29,13 +29,12 @@ set<StId>* kernelize(const Hypergraph& G, const unsigned k)
 /** NOTE: this assumes that all clades have been set up */
 void construct_conflict_hypergraph(const MyTree& T1, const MyTree& T2, Hypergraph& G)
 {
-  #warning improve the handeling of already computed triplet sets
-  assert(T1.node_infos_set_up());
-  assert(T2.node_infos_set_up());
-  const MatrixTriplets* const tripletTree1 = T1.get_triplets(); 
-  const MatrixTriplets* const tripletTree2 = T2.get_triplets();
+  assert(T1.triplets_set_up());
+  assert(T2.triplets_set_up());
+  const MatrixTriplets& tripletTree1 = T1.get_triplets(); 
+  const MatrixTriplets& tripletTree2 = T2.get_triplets();
 
-  const size_t dim = tripletTree1->size().first;
+  const size_t dim = tripletTree1.size().first;
   for (unsigned i = 0; i < dim; i++){
     // translate preorder numbers of T1 into preorder numbers of T2
     const StId i_id = stid(T1.leaf_by_po_num(i));
@@ -44,14 +43,12 @@ void construct_conflict_hypergraph(const MyTree& T1, const MyTree& T2, Hypergrap
       const StId j_id = stid(T1.leaf_by_po_num(j));
       const unsigned j_in_T2 = T2[j_id]->getInfos().leaf_po_num();
       // ATTENTION: i and j are leaf-postorder numbers whereas z is an stid
-  		for (const unsigned z: (*tripletTree1)[{i, j}])
-  			if(is_not_triple(*tripletTree2, i_in_T2, j_in_T2, z))
+  		for (const unsigned z: tripletTree1[{i, j}])
+  			if(is_not_triple(tripletTree2, i_in_T2, j_in_T2, z))
           // for each triple i, j, z in T1 that is NOT a triple in T2 
   				G.emplace_back(vector<StId>{i_id, j_id, z});
   	}// for all j
   }	// for all i
-  delete tripletTree1;
-  delete tripletTree2;
 }
 
 // return the vertices of the HittingSet kernel of the conflict hypergraph of triplets in T1 & T2

@@ -121,6 +121,7 @@ public:
       for(unsigned v_po = 0; v_po < T2.num_nodes(); ++v_po)
         set_entry(u, u_po, T2.node_by_po_num(v_po), v_po);
     }
+    //std::cout << "done."<<std::endl;
   }
 };
 

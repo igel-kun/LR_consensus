@@ -9,6 +9,7 @@
 using namespace bpp;
 
 
+size_t mast_count = 0;
 
 // TODO: preprocess the trees to find same agreeing clades & work on them independently
 // TODO: only compare node x of T1 to nodes of T2 in the subtree of T2 induced by the clade of x
@@ -32,6 +33,7 @@ unsigned mast(const MyTree& T1,
   //cout << " and "<<endl;
   //T2->pretty_print(cout, true);
 
+++mast_count;
   if(mast_leaves){
     // if we want to output the remaining leaves, we need to keep a trace
     TracableDPTable mast_table(T1, T2);

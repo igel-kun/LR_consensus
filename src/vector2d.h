@@ -38,7 +38,7 @@ namespace std{
     }
     void resize(const size_t cols, const size_t rows)
     {
-      vector<T>::resize(linearize(cols - 1, rows - 1) + 1);
+      vector<T>::resize(linearize({cols - 1, rows - 1}) + 1);
     }
     virtual pair<size_t, size_t> size() const = 0;
   };// class vector2d
@@ -72,6 +72,7 @@ namespace std{
     }
     pair<size_t,size_t> size() const
     {
+      assert(columns > 0);
       return make_pair(columns, vector<T>::size() / columns);
     }
   };
@@ -92,7 +93,7 @@ namespace std{
     }
     
   public:
-    symmetric_vector2d(): vector<T>() {}
+    symmetric_vector2d(): _vector2d<T>() {}
 
     symmetric_vector2d(const size_t rows_and_cols, const T& element = T())
     {

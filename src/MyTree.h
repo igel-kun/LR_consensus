@@ -111,9 +111,11 @@ unsigned compute_nj(const MyNode* v)
 class MyTree: public TreeTemplate<MyNode> 
 {
 protected:
-	vector<MyNode*> StId_to_node;
-	vector<MyNode*> leaves_po;
-  vector<MyNode*> nodes_po;
+	vector<MyNode*> StId_to_node; //! conversion array for StId -> node
+	vector<MyNode*> leaves_po;    //! conversion array for leaf postorder numbers -> leaves
+  vector<MyNode*> nodes_po;     //! conversion array for node postorder numbers -> nodes
+  MatrixTriplets triplets;      //! a tree knows its triplets
+
   //vector<CentroidPath> centroid_paths;
 
 	//vector< unsigned > centroidPaths ;
@@ -387,6 +389,67 @@ public:
     return graft_leaf_above(StId_to_node[node_id]);
   }
 
+  //! take the leaf x and regraft it above v, keeping StIds in tact
+  void regraft_leaf_above(MyNode* const x, MyNode* const v)
+  {
+    assert(x->hasFather());
+    MyNode* const x_parent = x->getFather();
+    assert(v != x_parent); // if v is x_parent then grafing x above v makes v deg-2 and we end up with the same tree
+
+    //cout << "regrafting "<<x->getName()<<" onto "<<stid(v)<<" in "<<endl;
+    //pretty_print(cout, true);
+    if(x_parent->hasFather()){
+      
+      MyNode* const x_grand_parent = x_parent->getFather();
+      // step 1: remove x_parent from its parent
+      x_grand_parent->removeSon((Node*)x_parent);
+      // step 1: move all children of x_parent onto their grand parent, except x
+      for(ssize_t i = x_parent->getNumberOfSons() - 1; i >= 0; --i){
+        MyNode* const child = x_parent->getSon(i);
+        x_parent->removeSon(i);
+        if(child != x)
+          x_grand_parent->addSon(child);
+      }
+      // now, graft x_parent and x onto v
+      if(!v->hasFather()){
+        // if v is the root
+        x_parent->addSon(v);
+        x_parent->addSon(x);
+        setRootNode(x_parent);
+      } else {
+        MyNode* const v_parent = v->getFather();
+        v_parent->removeSon((Node*)v);
+        v_parent->addSon(x_parent);
+        x_parent->addSon(v);
+        x_parent->addSon(x);
+      }
+    } else {
+      assert(v->hasFather());
+      MyNode* const v_parent = v->getFather();
+      //NOTE: if x and v have a common parent, then the input tree is equal to the output tree, so don't do anything
+      if(v_parent == x_parent) return;
+      // x_parent is the root
+      assert(x_parent->getNumberOfSons() == 2);
+      const unsigned new_root_son = (x_parent->getSon(0) == x) ? 1 : 0;
+      MyNode* const new_root = x_parent->getSon(new_root_son);
+
+      //cout << stid(new_root)<<" is going to be the new root"<<endl;
+      x_parent->removeSon(new_root_son);
+      //NOTE: v cannot be the new root, as in this case v->getFather() == x_parent
+      v_parent->removeSon((Node*)v);
+      v_parent->addSon(x_parent);
+      x_parent->addSon(v);
+      setRootNode(new_root);
+    }
+    //cout << "done regrafting: "<<endl;
+    //pretty_print();
+  }
+
+  void regraft_leaf_above(const StId x, const StId v)
+  {
+    regraft_leaf_above(StId_to_node[x], StId_to_node[v]);
+  }
+
   //! setup traversal numbers, subtree sizes, and StIds
   // if requested, returns the vertices in post order; in any case, return our tree to enable chaining preprocessings
   //NOTE: unset change_StIds to keep StIds in tact
@@ -640,9 +703,9 @@ public:
   
   // ====================== conflict triples ======================
 	
-  void get_triplets(MatrixTriplets& Triplets, const MyNode& current_node) const 
+  void setup_triplets(const MyNode& current_node) 
   {
-		for(auto& child: get_children(current_node)) get_triplets(Triplets, child); // recursive calls
+		for(auto& child: get_children(current_node)) setup_triplets(child); // recursive calls
 		
 		const Clade& cladeCN = current_node.getInfos().clade;
     const ConstChildren childs = get_children(current_node);
@@ -655,9 +718,9 @@ public:
 				for(unsigned i = cladeA.first;i <= cladeA.second; i++){
 					for(unsigned j = cladeB.first;j < cladeB.second; j++){
 						for(unsigned z = 0; z < cladeCN.first; ++z)
-								add_triple(Triplets, i, j, stid(leaves_po[z]));
+								add_triple(triplets, i, j, stid(leaves_po[z]));
 						for(unsigned z = cladeCN.second + 1; z < num_leaves(); ++z)
-								add_triple(Triplets, i, j, stid(leaves_po[z]));
+								add_triple(triplets, i, j, stid(leaves_po[z]));
 					}// for all leaves j in the clade of B
 				}// for all leaves i in the clade of A
 			}// for each child B that is right of A
@@ -665,16 +728,29 @@ public:
 	}
 
   //! gets all conflicting triples
-  /** NOTE: this assumes that the clades have been set up
-   */
-	MatrixTriplets* get_triplets() const {
+  /** NOTE: this assumes that the clades have been set up*/
+	void setup_triplets() {
     assert(!leaves_po.empty());
 
-		MatrixTriplets* Triplets = new MatrixTriplets(num_leaves());
-		get_triplets(*Triplets, *getRootNode());
-		return Triplets;
-  }	
+		triplets.resize(num_leaves(), num_leaves());
+		setup_triplets(*getRootNode());
+  }
 
+  bool triplets_set_up() const
+  {
+    return triplets.size() == make_pair(num_leaves(), num_leaves());
+  }
+
+  const MatrixTriplets& get_triplets() const
+  {
+    return triplets;
+  }
+
+  //! after regrafting a leaf x, this will update all triplets involving x
+  void update_triplets(const unsigned old_po_num, const unsigned new_po_num)
+  {
+#warning TODO: write me
+  }
 
 /*
   //============================ centroid paths =============================

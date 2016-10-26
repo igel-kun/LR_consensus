@@ -15,7 +15,7 @@
  * max_dist is the maximum allowed distance between the solution and any of the given trees
  * max_moves_in_T0 is the maximum number of leaf-prune-and-regraft steps that can be applied to T0 to find the solution
  **/
-MyTree* mastRL(MyTree& T0,
+MyTree* mastRL(const MyTree& T0,
                const vector<MyTree*>& trees,
                const unsigned max_dist,
                const unsigned max_moves_in_T0)
@@ -23,16 +23,16 @@ MyTree* mastRL(MyTree& T0,
   // step 1: get a tree Ti at maximal distance to T0
   unsigned max_dist_index = 0;
   unsigned max_dist_to_T0 = 0;
-  T0.setup_node_infos(false);
   //cout << "Checking candidate"<<endl;
   //T0.pretty_print();
   //cout << "with "<<T0.num_nodes()<<" nodes"<<endl;
 
   for(unsigned i = 0; i < trees.size(); ++i){
     assert(trees[i]->node_infos_set_up());
-    //cout << "mast against"<<endl;
+    //cout << "mast against tree "<<i<<":"<<endl;
     //trees[i]->pretty_print();
     const unsigned dist = T0.num_leaves() - mast(T0, *trees[i]);
+    //cout << "got distance "<<dist<<" vs. "<<max_dist + max_moves_in_T0<<endl;
     if(dist > max_dist_to_T0){
       max_dist_index = i;
       max_dist_to_T0 = dist;
@@ -58,11 +58,9 @@ MyTree* mastRL(MyTree& T0,
     // step 3: enumerate all first (LPR-) steps on the way from T0 to a solution and recurse for each of them
     //cout << "---- level: "<<max_moves_in_T0<<" ---> kernel: " << *kernel <<endl;
     for(const StId& x: *kernel){
-      const CandidateFactory fac(T0, distant_tree, x, max_dist, max_moves_in_T0);
+      CandidateFactory fac(T0, distant_tree, x, max_dist, max_moves_in_T0);
       //cout << "===== LEVEL: "<<max_moves_in_T0<<" ==== kernel leaf: "<< x<<" ("<<T0[x]->getName()<<") ====== "<<fac.size()<<" candidates ====="<<endl;
-      for(MyTree& candidate: fac){
-        //cout << "candidate: "<<endl;
-        //candidate.pretty_print();
+      for(const MyTree& candidate: fac){
 #warning TODO: cache-check here if we have already seen this candidate with at least this distance
         MyTree* solution = mastRL(candidate, trees, max_dist, max_moves_in_T0 - 1);
         if(solution != NULL) {
@@ -70,6 +68,7 @@ MyTree* mastRL(MyTree& T0,
           return solution;
         } else;// cout << "no solution"<<endl;
       }// for each candidate produced by regrafting x
+      //cout << "done processing candidates"<<endl;
     }// for each node x in the kernel
   }// if the kernelization didn't conclude that it's a no-instance
   return NULL;
@@ -90,8 +89,8 @@ MyTree* mastRL(MyTree& T0, const vector<MyTree*>& trees)
   unsigned d = 1;
   MyTree* result;
   while( (result = mastRL(T0, trees, d)) == NULL) {
-    cout << "computing consensus for "<<d<<endl;
     ++d;
+    cout << "computing consensus for "<<d<<endl;
   }
   return result;
 }

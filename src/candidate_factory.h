@@ -142,16 +142,16 @@ class CandidateIterator: public set<TreeEdge>::iterator
 {
   typedef typename set<TreeEdge>::iterator ParentClass;
 
-  const CandidateFactory& factory;
-  MyTree* tree;
+  CandidateFactory& factory;
+  const MyTree* tree;
 
 public:
-  CandidateIterator(const CandidateFactory& _factory):
+  CandidateIterator(CandidateFactory& _factory):
     ParentClass(),
     factory(_factory),
     tree(NULL)
   {}
-  CandidateIterator(const CandidateFactory& _factory, const typename set<TreeEdge>::iterator _it):
+  CandidateIterator(CandidateFactory& _factory, const typename set<TreeEdge>::iterator _it):
     ParentClass(_it),
     factory(_factory),
     tree(NULL)
@@ -164,15 +164,15 @@ public:
 
 
   // on dereference, ask the factory to create the tree corresponding to the candidate StId
-  MyTree* operator->();
-  MyTree& operator*()
+  const MyTree* operator->();
+  const MyTree& operator*()
   {
     return *(operator->());
   }
   //! increment operator
   CandidateIterator& operator++() 
   {
-    delete tree; tree = NULL;
+    tree = NULL;
     ParentClass::operator++();
     return *this;
   }
@@ -200,6 +200,7 @@ public:
  **/
 class CandidateFactory
 {
+  MyTree candidate;
   MyTree* T0;
 
   const MyTree* const Ti;
@@ -285,22 +286,27 @@ class CandidateFactory
 public:
   // NOTE: x should be the StId of the leaf x in both _T0 and _Ti
   CandidateFactory(const MyTree& _T0, MyTree& _Ti, const StId _x, const unsigned _max_distance, const unsigned _max_moves_in_T0):
-    T0(_T0 - _x), Ti(new MyTree(_Ti)), x(_x), x_name(_T0[_x]->getName()), max_dist(_max_distance), max_moves(_max_moves_in_T0)
+    candidate(_T0),
+    T0(_T0 - _x),
+    Ti(new MyTree(_Ti)),
+    x(_x),
+    x_name(_T0[_x]->getName()),
+    max_dist(_max_distance),
+    max_moves(_max_moves_in_T0)
   {
     //cout << "building a candidate factory with x = "<<x<<endl;
-    T0->sync_leaf_stids(*Ti);
-    //cout << "trees"<<endl;
-    //T0->pretty_print(cout, true);
-    //cout << " ("<<T0->num_stids()<<" stids) & "<<endl;
-    //_Ti.pretty_print();
-    //cout << "("<<_Ti.num_stids()<<" stids)"<<endl;
-    
     T0->setup_node_infos(false);
     T0->lca_preprocess();
 
+    //cout << "trees"<<endl;
+    //T0->pretty_print();
+    //cout << " ("<<T0->num_stids()<<" stids) & "<<endl;
+    //_Ti.pretty_print();
+    //cout << "("<<_Ti.num_stids()<<" stids)"<<endl;
+
 //    for(unsigned i = 0; i < T0->num_leaves()-1; ++i) cout << "LCA("<<stid(T0->leaf_by_po_num(i))<<"["<<T0->leaf_by_po_num(i)->getId()<<"], "<<stid(T0->leaf_by_po_num(i+1))<<"["<<T0->leaf_by_po_num(i+1)->getId()<<"]) = "<<stid(T0->getLCA(T0->leaf_by_po_num(i), T0->leaf_by_po_num(i+1)))<<"["<<T0->getLCA(T0->leaf_by_po_num(i), T0->leaf_by_po_num(i+1))->getId()<<"]"<<endl;
     init();
-    // cout << "produced candidates: "<<regraft_candidates_T0<<endl;
+    //cout << "produced candidates: "<<regraft_candidates_T0<<endl;
   }
 
   ~CandidateFactory()
@@ -309,25 +315,24 @@ public:
     delete Ti;
   }
 
-  CandidateIterator begin() const
+  CandidateIterator begin()
   {
     CandidateIterator i(*this, regraft_candidates_T0.begin());
     return i;
   }
 
-  CandidateIterator end() const
+  CandidateIterator end()
   {
     CandidateIterator i(*this, regraft_candidates_T0.end());
     return i;
   }
 
   // create a new candidate tree from T0 by grafting x on the uv
-  MyTree* create_candidate_tree(const TreeEdge& uv) const 
+  const MyTree* create_candidate_tree(const TreeEdge& uv)
   {
-#warning TODO: can we skip this tree-copy and return a modified version of T0 instead?
     //cout << "creating candidate tree for TreeEdge above "<<uv<<" in "<<endl;
-    //T0->pretty_print(cout, true);
-
+    //T0->pretty_print();
+/*
     MyTree* result = new MyTree(*T0);
     const StId v_id = uv;
     MyNode* const new_x = result->graft_leaf_above(v_id);
@@ -336,8 +341,13 @@ public:
     result->consolidate_StIds();
     //cout << "new tree:"<<endl;
     //result->pretty_print(cout, true);
+*/
+    candidate.regraft_leaf_above(x, uv);
+    candidate.setup_node_infos(false);
+    candidate.setup_triplets();
+    candidate.lca_preprocess();
 
-    return result;
+    return &candidate;
   }
 
   size_t size() const
@@ -347,7 +357,7 @@ public:
 };
 
 
-MyTree* CandidateIterator::operator->(){ 
+const MyTree* CandidateIterator::operator->(){ 
   if(tree == NULL) tree = factory.create_candidate_tree(ParentClass::operator*());
   return tree;
 }
