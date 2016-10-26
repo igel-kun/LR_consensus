@@ -46,8 +46,17 @@ include_directories("hslinkern")
 # Source Directory
 add_subdirectory ( "hslinkern" )
 
+if(STATIC STREQUAL ON)
+  SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+  SET(BUILD_SHARED_LIBRARIES OFF)
+  SET(CMAKE_EXE_LINKER_FLAGS "-static")
+endif(STATIC STREQUAL ON)
+
+
 add_executable( "${PROJECT_NAME}" "${PROJECT_NAME}.cpp" )
 target_link_libraries ( "${PROJECT_NAME}" "${LIBS}" "hslinkern" )
+
+
 
 add_executable( "test" "test.cpp" )
 target_link_libraries ( "test" "${LIBS}" "hslinkern" )
