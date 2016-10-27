@@ -4,10 +4,12 @@ project (mast)
 set (mast_VERSION_MAJOR 1)
 set (mast_VERSION_MINOR 0)
 
+option (DEBUG "debug mode (0=none, 9=max)" OFF)
+
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 set(CMAKE_COMMON_FLAGS "${CMAKE_COMMON_FLAGS} -pthread -Wall -fmax-errors=2 -ftemplate-backtrace-limit=0 -std=c++11 -DIL_STD")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_COMMON_FLAGS} -O3 -DNDEBUG")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_COMMON_FLAGS} -O3")
 
 # --- the IMPROVED_FIND_LIBRARY macro (taken from the Bio++ CMakeLists.txt) ---
 macro(IMPROVED_FIND_LIBRARY OUTPUT_LIBS lib_name include_to_find)
@@ -41,16 +43,32 @@ IMPROVED_FIND_LIBRARY(LIBS bpp-core Bpp/Clonable.h)
 find_package(Boost REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
-include_directories("hslinkern")
 
-# Source Directory
-add_subdirectory ( "hslinkern" )
+message("debug mode (DEBUG)             " ${DEBUG} )
+if((${DEBUG} EQUAL 0) OR (${DEBUG} STREQUAL OFF))
+  set(CMAKE_BUILD_TYPE RELEASE)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNDEBUG")
+else((${DEBUG} EQUAL 0) OR (${DEBUG} STREQUAL OFF))
+  MESSAGE("building DEBUG version...")
+  set(CMAKE_BUILD_TYPE DEBUG)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ddebuglevel=${DEBUG}")
+endif((${DEBUG} EQUAL 0) OR (${DEBUG} STREQUAL OFF))
+
+
 
 if(STATIC STREQUAL ON)
   SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   SET(BUILD_SHARED_LIBRARIES OFF)
   SET(CMAKE_EXE_LINKER_FLAGS "-static")
 endif(STATIC STREQUAL ON)
+
+set(CMAKE_COMMON_FLAGS "${CMAKE_COMMON_FLAGS} -pthread -Wall -fmax-errors=2 -ftemplate-backtrace-limit=0 -std=c++11 -DIL_STD")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_COMMON_FLAGS} -O3 -march=native -Wno-cpp -DNDEBUG -pipe -m64 -msahf -fno-stack-protector ${GRAPHITE_CXX_FLAGS}")
+
+
+# Source Directory
+include_directories("hslinkern")
+add_subdirectory ( "hslinkern" )
 
 
 add_executable( "${PROJECT_NAME}" "${PROJECT_NAME}.cpp" )
