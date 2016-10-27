@@ -52,7 +52,7 @@ MyTree* mastRL(const MyTree& T0,
   //cout << "and (index "<<max_dist_index<<", distance "<<max_dist_to_T0<<")"<<endl;
   //distant_tree.pretty_print();
   // step 2: construct disagreement kernel between T0 and Ti
-  const set<StId>* const kernel = disagreement_kernel(T0, distant_tree, max_dist);
+  const set<StId>* const kernel = disagreement_kernel(T0, distant_tree, max_dist + max_moves_in_T0);
 
   if(kernel){
     // step 3: enumerate all first (LPR-) steps on the way from T0 to a solution and recurse for each of them
