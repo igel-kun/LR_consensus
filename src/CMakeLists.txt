@@ -78,7 +78,7 @@ add_executable( "mast_all" "mast_all.cpp" )
 target_link_libraries ( "mast_all" "${LIBS}" "hslinkern" )
 
 add_executable( "dists" "dists.cpp" )
-target_link_libraries ( "dists" "${LIBS}" )
+target_link_libraries ( "dists" "${LIBS}" "hslinkern")
 
 
 
