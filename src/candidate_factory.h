@@ -285,7 +285,7 @@ class CandidateFactory
 
 public:
   // NOTE: x should be the StId of the leaf x in both _T0 and _Ti
-  CandidateFactory(const MyTree& _T0, MyTree& _Ti, const StId _x, const unsigned _max_distance, const unsigned _max_moves_in_T0):
+  CandidateFactory(const MyTree& _T0, const MyTree& _Ti, const StId _x, const unsigned _max_distance, const unsigned _max_moves_in_T0):
     candidate(_T0),
     T0(_T0 - _x),
     Ti(new MyTree(_Ti)),

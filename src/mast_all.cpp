@@ -7,7 +7,8 @@
 #include <iostream>
 #include "utils.h"
 #include "MyTree.h"
-#include "mastRL.h"
+//#include "mastRL.h"
+#include "mastRL_all.h"
 // From PhylLib:
 #include <Bpp/Phyl/Io/IoTree.h>
 #include <Bpp/Phyl/Io/Newick.h>
@@ -75,16 +76,14 @@ void test_2mast(const MyTree& t, const vector<MyNode*>& nodes, const vector<MyTr
 int main(int argc, char** argv){
   vector<MyTree*> trees;
 	trees = readTrees(argv[1]);
-	unsigned d = 0;
+	string outputPath = "out.txt";
   bool check_mode = false;
 	if(argc>2) {
     if((string)(argv[2]) == "check")
       check_mode = true;
     else
-      d = atoi(argv[2]);
+	    outputPath= argv[2];
   }
-	string outputPath = "out.txt";
-	if(argc>3) outputPath= argv[3];
 
 
   // NOTE: to call mastRL, we need the following preprocessing steps:
@@ -114,19 +113,25 @@ int main(int argc, char** argv){
   tm.start();
 
   if(!check_mode){
-    MyTree* mRL = (d == 0) ? mastRL(*t, trees) : mastRL(*t, trees, d);
+    Solution mRL_sol = mastRL(*t, trees);
+    MyTree* mRL = mRL_sol.second.first;
 
-    cout << "consensus: "<<endl;
+    cout << "consensus ( "<<mRL_sol.second.second<<" trees of score max: "<<mRL_sol.first.first<<" sum: "<<mRL_sol.first.second<<" ): "<<endl;
     if(mRL) {
       mRL->pretty_print();
-/*
+
       mRL->setup_node_infos(false);
       trees.push_back(t);
+      unsigned max_mst = 0;
+      unsigned sum_mst = 0;
       for(unsigned i = 0; i < trees.size(); ++i){
         //cout << "agreement with:"<<endl;
         //trees[i]->pretty_print();
         list<StId> mast_list;
-        mast(*mRL, *trees[i], &mast_list);
+        const unsigned mst = t->num_leaves() - mast(*mRL, *trees[i], &mast_list);
+        max_mst = max(max_mst, mst);
+        sum_mst += mst;
+
         list<string> non_agreement;
         auto mast_list_iter = mast_list.begin();
         for(unsigned j = 0; j < mRL->num_leaves(); ++j){
@@ -135,7 +140,7 @@ int main(int argc, char** argv){
         }
         cout << "mast with trees["<<i<<"]: "<<mast_list<<" (disagreeing on "<<non_agreement<<")"<<endl;
       }
-      */
+      cout << "total max: "<<max_mst<<" \tsum: "<< sum_mst<<endl;
     }
     
     if(mRL) {

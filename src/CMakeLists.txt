@@ -70,13 +70,14 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_COMMON_FLAGS} -O3 -march=native -Wno-cpp -D
 include_directories("hslinkern")
 add_subdirectory ( "hslinkern" )
 
+add_executable( "mast" "mast.cpp" )
+target_link_libraries ( "mast" "${LIBS}" "hslinkern" )
 
-add_executable( "${PROJECT_NAME}" "${PROJECT_NAME}.cpp" )
-target_link_libraries ( "${PROJECT_NAME}" "${LIBS}" "hslinkern" )
+add_executable( "mast_all" "mast_all.cpp" )
+target_link_libraries ( "mast_all" "${LIBS}" "hslinkern" )
 
+add_executable( "dists" "dists.cpp" )
+target_link_libraries ( "dists" "${LIBS}" )
 
-
-add_executable( "test" "test.cpp" )
-target_link_libraries ( "test" "${LIBS}" "hslinkern" )
 
 
