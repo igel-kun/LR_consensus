@@ -52,8 +52,12 @@ else((${DEBUG} EQUAL 0) OR (${DEBUG} STREQUAL OFF))
   MESSAGE("building DEBUG version...")
   set(CMAKE_BUILD_TYPE DEBUG)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ddebuglevel=${DEBUG}")
-endif((${DEBUG} EQUAL 0) OR (${DEBUG} STREQUAL OFF))
+endif()
 
+# suppress clangs silly "unused parameter" warnings...
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+  set(CMAKE_COMMON_FLAGS "${CMAKE_COMMON_FLAGS} -Qunused-arguments")
+endif()
 
 
 if(STATIC STREQUAL ON)
