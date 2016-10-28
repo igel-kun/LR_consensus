@@ -49,6 +49,10 @@ unsigned num_triples(const MyTree& T1)
 
 int main(int argc, char** argv){
   vector<MyTree*> trees, tmp;
+  if(argc < 2){
+    cout << "usage: "<< argv[0] << " <infile> [outfile|check]" << endl;
+    return 1;
+  }
 	trees = readTrees(argv[1]);
   if(argc > 1) tmp = readTrees(argv[2]);
   trees.insert(trees.end(), tmp.begin(), tmp.end());
