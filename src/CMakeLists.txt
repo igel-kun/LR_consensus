@@ -63,7 +63,8 @@ if(STATIC STREQUAL ON)
 endif(STATIC STREQUAL ON)
 
 set(CMAKE_COMMON_FLAGS "${CMAKE_COMMON_FLAGS} -pthread -Wall -fmax-errors=2 -ftemplate-backtrace-limit=0 -std=c++11 -DIL_STD")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_COMMON_FLAGS} -O3 -march=native -Wno-cpp -DNDEBUG -pipe -m64 -fno-stack-protector ${GRAPHITE_CXX_FLAGS}")
+#set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_COMMON_FLAGS} -O3 -march=native -Wno-cpp -DNDEBUG -pipe -fno-stack-protector")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_COMMON_FLAGS} -O3 -Wno-cpp -DNDEBUG")
 
 
 # Source Directory
