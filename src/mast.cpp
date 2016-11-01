@@ -1,122 +1,161 @@
 
 
-#include "profiling.hpp"
 
-#include <string>
-#include <vector>
+//
+// File: mast.cpp
+// Created by: Celine Scornavacca, Mathias Weller
+// Created on: Sep Wed 21 11:27 2016
+//
+
+// From the STL:
 #include <iostream>
-#include "utils.h"
-#include "MyTree.h"
-#include "mastRL.h"
+
+using namespace std;
+
 // From PhylLib:
 #include <Bpp/Phyl/Io/IoTree.h>
 #include <Bpp/Phyl/Io/Newick.h>
-using namespace std;
+#include <Bpp/Phyl/Tree.h>
+#include <Bpp/Phyl/TreeExceptions.h>
+#include <Bpp/Phyl/TreeTemplateTools.h>
+#include <Bpp/Phyl/App/PhylogeneticsApplicationTools.h>
+
+// From NumCalc:
+#include <Bpp/Numeric/VectorTools.h>
+
+// From Utils:
+#include <Bpp/Io/FileTools.h>
+#include <Bpp/Text/TextTools.h>
+#include <Bpp/Text/StringTokenizer.h>
+#include <Bpp/App/ApplicationTools.h>
+#include <Bpp/Utils/AttributesTools.h>
+
 using namespace bpp;
 
+#include "NodeInfos.h"
+#include "MyTree.h"
+#include "agreement_kernel.h"
 
-int main(int argc, char** argv){
-  vector<MyTree*> trees;
-  if(argc < 2){
-    cout << "usage: "<< argv[0] << " <infile> [outfile|check]" << endl;
-    return 1;
-  }
-	trees = readTrees(argv[1]);
-	string outputPath = "out.txt";
-  bool check_mode = false;
-	if(argc>2) {
-    if((string)(argv[2]) == "check")
-      check_mode = true;
-    else
-	    outputPath= argv[2];
-  }
+//typedef NodeTemplate<NodeInfos> MyNode;
+//typedef TreeTemplate<MyNode> MyTree;
+
+#include "mast_SW93.h"
+#include "utils.h"
 
 
-  // NOTE: to call mastRL, we need the following preprocessing steps:
-  // Step 1: seperate a candidate t from the trees
-  MyTree* t = trees.back();
-  trees.pop_back();
-  // Step 2: setup t's node infos (depths, clades, stids, ...) & lcas
-  t->setup_node_infos(true);
-  t->setup_triplets();
-  t->lca_preprocess();
-  //t->pretty_print();
-  
-  // Step 3: setup node infos and sync stids of all leaves of the trees with that of t
-  for(MyTree* T2: trees) {
-    T2->setup_node_infos();
-    T2->sync_leaf_stids(*t);
-    T2->setup_triplets();
-    T2->lca_preprocess();
-  }
- 
-//  test_LCA(t);
-//  test_nearest_indices();
-//  test_induced_subtree(t); 
-//  test_2mast(t, trees);
+const string help_text = (string)"" +
+                         "____________________________________________________________________________\n" +
+                         "This program takes as input a path to a list of phylogenetic trees in newick\n" +
+                         "format and an integer d and outputs a MAST-RL for the input, if any exists. \n" +
+                         "input.list.file            | [path] toward multi-trees file (newick)        \n" +
+                         "max.distance               | [integer] toward multi-trees file (newick)     \n" +
+                         "output.tree.file           | file where to write the MAST-RL tree           \n" +
+                         "___________________________|________________________________________________\n";
 
-  timer tm;
-  tm.start();
-
-  if(!check_mode){
-    MyTree* mRL = mastRL(*t, trees);
-
-    cout << "consensus: "<<endl;
-    if(mRL) {
-      mRL->pretty_print();
-/*
-      mRL->setup_node_infos(false);
-      trees.push_back(t);
-      for(unsigned i = 0; i < trees.size(); ++i){
-        //cout << "agreement with:"<<endl;
-        //trees[i]->pretty_print();
-        list<StId> mast_list;
-        mast(*mRL, *trees[i], &mast_list);
-        list<string> non_agreement;
-        auto mast_list_iter = mast_list.begin();
-        for(unsigned j = 0; j < mRL->num_leaves(); ++j){
-          const StId id = stid(mRL->leaf_by_po_num(j));
-          if((mast_list_iter == mast_list.end()) || (id != *mast_list_iter)) non_agreement.push_back((*mRL)[id]->getName()); else ++mast_list_iter;
-        }
-        cout << "mast with trees["<<i<<"]: "<<mast_list<<" (disagreeing on "<<non_agreement<<")"<<endl;
-      }
-      */
-    }
-    
-    if(mRL) {
-      cout << " OK"<<endl;
-      Newick newick;
-      newick.write(* mRL, outputPath, true);
-    } else cout << " none"<<endl;
-  } else {
-    cout << "2-MASTs of "<<endl;
-    t->pretty_print();
-    size_t max_dist = 0;
-    for(MyTree* other: trees){
-      cout << "vs"<<endl;
-      other->pretty_print();
-
-      list<StId> mast_list;
-      unsigned mst = mast(*t, *other, &mast_list);
-      list<string> non_agreement;
-      auto mast_list_iter = mast_list.begin();
-      for(unsigned j = 0; j < t->num_leaves(); ++j){
-        const StId id = stid(t->leaf_by_po_num(j));
-        if((mast_list_iter == mast_list.end()) || (id != *mast_list_iter))
-          non_agreement.push_back((*t)[id]->getName()); else ++mast_list_iter;
-      }
-      assert(mst + non_agreement.size() == other->num_leaves());
-      cout << mst << " mast ("<<mast_count<<"): "<<mast_list<<" (disagreeing on "<<non_agreement<<")"<<endl;
-      max_dist = std::max(max_dist, non_agreement.size());
-    }
-    cout << "max-distance: "<<max_dist<<endl;
-  }
-
-  tm.stop();
-  if(tm.seconds_passed())
-    cout << "computed "<<mast_count<<" 2-masts in "<<tm.seconds_passed()<<"s = "<<((float)mast_count)/((float)tm.seconds_passed())<<" mast/s"<<endl;
-
-  return 0;
+void quit(const string& message, const unsigned return_code)
+{
+  if(return_code != 0)
+    cerr << message << endl;
+  else
+    cout << message << endl;
+  exit(return_code);
 }
 
+void parse_params(const unsigned args, char** const argv, map<string, string>& params)
+{
+  // Get the parameters from command line:
+  params = AttributesTools::getAttributesMap(AttributesTools::getVector(args, argv), "=");
+
+  // Look for a specified file with parameters:
+  if(params.find("param") != params.end()) {
+    const string filename = params.at("param");
+    if(FileTools::fileExists(filename)) {
+      const map<string, string> file_params = AttributesTools::getAttributesMapFromFile(filename, "=");
+      // Update attributes with ones passed to command line:
+      AttributesTools::actualizeAttributesMap(params, file_params);
+    } else quit("Parameter file not found.", -1);
+  }
+}
+
+int main(int args, char ** argv){
+
+  cout << "******************************************************************" << endl;
+  cout << "*               MAST-RL, version 0.1.0 *" << endl;
+  cout << "* Authors: C. Scornavacca, Mathias Weller   Created     21/09/16 *" << endl;
+  cout << "*                                           Last Modif. 21/09/16 *" << endl;
+  cout << "******************************************************************" << endl << endl;
+
+	if(args == 1) quit(help_text, 0);
+
+		ApplicationTools::startTimer();
+
+		cout << "Parsing options:" << endl;
+    map<string, string> params;
+    parse_params(args, argv, params);
+
+		const string listPath = ApplicationTools::getAFilePath("input.list.file", params);
+		ApplicationTools::displayResult("Input list file", listPath);
+		if(listPath == "none") throw Exception("You must provide an input tree list file.");
+//    unsigned d =  ApplicationTools::getDoubleParameter("max.distance", params, 1);
+
+
+		string outputPath = ApplicationTools::getAFilePath("output.tree.file", params, false, false, "",true,"MAST-RL.txt");
+		ApplicationTools::displayResult("Output file", outputPath);
+
+	  	vector<MyTree *> trees;
+
+	  	//Reading trees to root
+		trees = readTrees(listPath);
+
+		vector < string >	 *leaves = new vector < string>[trees.size() +1];
+
+	  	for(unsigned y=0;y< trees.size();y++){
+			leaves[y]= (* trees[y]).getLeavesNames();
+			sort(leaves[y].begin(), leaves[y].end());
+		}
+
+	  	vector <string> AllLeaves = allLeaves(leaves, trees.size());
+
+	  	map<string,unsigned> association;
+	  	map<string,unsigned>::iterator iter;
+
+	  	for (unsigned i =0;i<  AllLeaves.size(); i++){
+	  		association.insert( make_pair(  AllLeaves[i], i));
+		}
+
+	  	/*for(unsigned y=0;y< trees.size();y++){
+	  	    unsigned maxId = AllLeaves.size();
+	  		vector <MyNode * >  nodes= trees[y]->getNodes();
+	  		//create a vector of pounsigneders from stIds to nodes
+	  		trees[y]->setCorrispondanceLenghtId(nodes.size());
+			for(unsigned l=0;l< nodes.size();l++){
+			// twin leaves will have the same stId in the two trees, associated to the name via the mapping association
+	  	    // the unsignedernal nodes will have stIds starting from maxId up
+			    if(nodes[l]->isLeaf()){
+				    iter= association.find( nodes[l]->getName());
+				    nodes[l]->getInfos().setStId(iter->second);
+				    //set the pounsigneder from stId to node
+				    trees[y]->setNodeWithStId(nodes[l], iter->second);
+				}
+				else{
+				    nodes[l]->getInfos().setStId(maxId);
+				    //set the pounsigneder from stId to node
+				    trees[y]->setNodeWithStId(nodes[l],maxId);
+				    maxId++;
+				}
+			}
+	  	}*/
+
+
+		if(trees.size()>1){
+		    //newick.write(* trees[t], outputPath, false);
+			for(unsigned i = 0; i < trees.size(); i++) delete trees[i];
+
+		}
+		else{
+			cout << "In file " << listPath << " there is only a tree...\n";
+		}
+
+	return 0;
+};
 

@@ -20,7 +20,7 @@ using namespace bpp;
 #define clade(x) (x)->getInfos().clade
 #define stid(x) (x)->getInfos().stId
 #define same_centroid_path(x,y) ((x)->getInfos().cp_num == (y)->getInfos().cp_num)
-#define is_ancestor(x,y) ((x)->getInfos().clade.contains((y)->getInfos().clade))
+#define is_ancestor(x,y) ((x).getInfos().clade.contains((y).getInfos().clade))
 
 typedef unsigned StId;
 

@@ -197,3 +197,22 @@ using PostOrderIterator = _PostOrderIterator<MyNode>;
 using PostOrderConstIterator = _PostOrderIterator<const MyNode>;
 
 
+template<class NodeType, class Iter>
+struct _Traversal
+{
+  NodeType* const root;
+
+  _Traversal(NodeType* const _r): root(_r) {}
+  Iter begin() const { return Iter(root); }
+  Iter end() const { return Iter(); }
+};
+
+using PreOrderTraversal = _Traversal<MyNode, PreOrderIterator>;
+using PreOrderConstTraversal = const _Traversal<const MyNode, PreOrderConstIterator>;
+using PostOrderTraversal = _Traversal<MyNode, PostOrderIterator>;
+using PostOrderConstTraversal = const _Traversal<const MyNode, PostOrderConstIterator>;
+
+
+
+
+

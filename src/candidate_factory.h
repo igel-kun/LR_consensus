@@ -8,6 +8,7 @@
 #include "utils.h"
 #include "mast_SW93.h"
 #include "MyTree.h"
+#include "candidate_tree.h"
 
 // we represent Edges as the StId of the lower vertex
 typedef StId TreeEdge;
@@ -109,7 +110,7 @@ void translate_regraft_candidates(const vector<TreeEdge>& Tm_candidates,
                                   const list<StId>& Xm)
 {
   T0_candidates.clear();
-  //cout << "translating "<<Tm_candidates<<" with Xm = "<<Xm<<endl;
+  DEBUG3(cout << "translating "<<Tm_candidates<<" with Xm = "<<Xm<<endl);
   for(const TreeEdge& uv: Tm_candidates){
     const StId v_id = uv; // remember that uv is represented by v's StId
     //NOTE: v_id could be the root of Tm, in which case there is no upper bound
@@ -132,7 +133,7 @@ void translate_regraft_candidates(const vector<TreeEdge>& Tm_candidates,
         collect_upwards(T0, l, u_id, T0_candidates);
     }// for all leaf IDs in Xm
   }
-  //cout << "done translating, candidates are: "<<T0_candidates<<endl;
+  DEBUG3(cout << "done translating, candidates are: "<<T0_candidates<<endl);
 }
 
 
@@ -143,7 +144,7 @@ class CandidateIterator: public set<TreeEdge>::iterator
   typedef typename set<TreeEdge>::iterator ParentClass;
 
   CandidateFactory& factory;
-  const MyTree* tree;
+  const CandidateTree* tree;
 
 public:
   CandidateIterator(CandidateFactory& _factory):
@@ -164,8 +165,8 @@ public:
 
 
   // on dereference, ask the factory to create the tree corresponding to the candidate StId
-  const MyTree* operator->();
-  const MyTree& operator*()
+  const CandidateTree* operator->();
+  const CandidateTree& operator*()
   {
     return *(operator->());
   }
@@ -200,7 +201,7 @@ public:
  **/
 class CandidateFactory
 {
-  MyTree candidate;
+  CandidateTree candidate;
   MyTree* T0;
 
   const MyTree* const Ti;
@@ -214,30 +215,30 @@ class CandidateFactory
   {    
     list<StId> mast_list;
     MyTree* Ti_minus_x = *Ti - x;
-    Ti_minus_x->setup_node_infos(false);
+    Ti_minus_x->setup_node_infos();
     mast(*T0, *Ti_minus_x, &mast_list);
-    //NOTE: mast()s response is the leaves of a mast in post-order of T0
+    //NOTE: mast()s response uis the leaves of a mast in post-order of T0
     delete Ti_minus_x;
-    //cout << "2-mast: "<<mast_list<<" in "<<endl;
-    //T0->pretty_print(cout, true);
+    DEBUG3(cout << "2-mast: "<<mast_list<<" in "<<endl;T0->pretty_print();)
 
     // here, Xm is actually Xm' in the paper, but we'll add x later to make it Xm
     list<StId> Xm;
+    DEBUG5(cout << "checking out "<<T0->num_leaves()<<" leaves"<<endl;)
     // to compute Xm, invert mast_list, making use of the fact that mast_list is in postorder with respect to T0
     auto mast_list_iter = mast_list.begin();
     for(unsigned i = 0; i < T0->num_leaves(); ++i){
-      const StId id = stid(T0->leaf_by_po_num(i));
-      if((mast_list_iter == mast_list.end()) || (id != *mast_list_iter)){
-        //cout << "adding stid "<<stid(&u)<<" to Xm"<<endl;
-        Xm.push_back(id);
-      } else ++mast_list_iter;
+      const MyNode* const u = T0->leaf_by_po_num(i);
+      if(u){
+        const StId id = stid(u);
+        if((mast_list_iter == mast_list.end()) || (id != *mast_list_iter)) Xm.push_back(id); else ++mast_list_iter;
+      }
     }
     
-    //cout << "getting Tm=T0-Xm"<<endl;
+    DEBUG5(cout << "getting Tm=T0-Xm"<<endl;)
     // compute Tm = T0 - Xm (where T0 = _T0 - x)
     const MyTree* const T0_minus_Xm = T0->induced_subtree(mast_list);
     
-    //cout << "getting Tm'=Ti-Xm"<<endl;
+    DEBUG5(cout << "getting Tm'=Ti-Xm"<<endl;)
     // compute Tm_prime = Ti - Xm
     //NOTE: since T0 and Ti agree on Xm and Xm is in post-order with respect to T0, it is also in post-order with respect to Ti
     MyTree* Ti_minus_Xm = new MyTree(*Ti);
@@ -249,18 +250,14 @@ class CandidateFactory
     const MyNode* const x_in_Ti_minus_Xm = (*Ti_minus_Xm)[x];
     
     Ti_minus_Xm->sync_stids_from(*T0_minus_Xm);
-    Ti_minus_Xm->setup_node_infos(false);
+    Ti_minus_Xm->setup_node_infos();
 
     // use Ti - Xm to limit the set of edges to which we can regraft x
     //NOTE: due to the previous sync, these will be represented by StIds that are IDENTICAL to the StIds in T0 - Xm
     pair<const MyNode*, const set<StId> > restriction = location_restriction(*Ti_minus_Xm, x_in_Ti_minus_Xm, max_dist + max_moves);
-    //cout << "the restriction is "<<(string)(restriction.first ? to_string(stid(restriction.first)) : "NULL")<<", "<<restriction.second<<" in "<<endl;
-    //Ti_minus_Xm->pretty_print();
+    DEBUG3(cout << "the restriction is "<<(string)(restriction.first ? to_string(stid(restriction.first)) : "NULL")<<", "<<restriction.second<<" in "<<endl;Ti_minus_Xm->pretty_print();)
 
-    //TODO: ask Mark what to do when y is above the root of T0-Xm, for now, we just set it to the root
-
-    //cout << "now for"<<endl;
-    //T0_minus_Xm->pretty_print();
+    DEBUG5(cout << "now for"<<endl;T0_minus_Xm->pretty_print();)
     vector<TreeEdge> regraft_candidates_Tm;
     if(restriction.first){
       get_all_below_y_avoiding_Z(*T0_minus_Xm, (*T0_minus_Xm)[stid(restriction.first)], restriction.second, regraft_candidates_Tm);
@@ -268,24 +265,24 @@ class CandidateFactory
       const MyNode* const y = T0_minus_Xm->getRootNode();
       get_all_below_y_avoiding_Z<false>(*T0_minus_Xm, y, restriction.second, regraft_candidates_Tm);
     }
-    //cout << "got "<<regraft_candidates_Tm.size()<<" regraft candidates: "<<regraft_candidates_Tm<<endl;
-    //cout << "in"<<endl;
-    //T0_minus_Xm->pretty_print();
-    //cout << "translating to"<<endl;
-    //T0->pretty_print();
-    //cout << "("<<T0->num_stids()<<" stids)"<<endl;
+    DEBUG3(cout << "got "<<regraft_candidates_Tm.size()<<" regraft candidates: "<<regraft_candidates_Tm<<endl;)
+    DEBUG5(cout << "in"<<endl;T0_minus_Xm->pretty_print(); cout << "translating to"<<endl; T0->pretty_print();)
 
     // translate this set of edges of T0 - Xm to a set of edges of T0
     translate_regraft_candidates(regraft_candidates_Tm, regraft_candidates_T0, *T0_minus_Xm, *T0, Xm);
 
     delete T0_minus_Xm;
     delete Ti_minus_Xm;
-    //cout << "done building factory"<<endl;
+    DEBUG3(cout << "done building factory"<<endl;)
   }
 
 public:
   // NOTE: x should be the StId of the leaf x in both _T0 and _Ti
-  CandidateFactory(const MyTree& _T0, const MyTree& _Ti, const StId _x, const unsigned _max_distance, const unsigned _max_moves_in_T0):
+  CandidateFactory(const CandidateTree& _T0,
+                    MyTree& _Ti,
+                    const StId _x,
+                    const unsigned _max_distance,
+                    const unsigned _max_moves_in_T0):
     candidate(_T0),
     T0(_T0 - _x),
     Ti(new MyTree(_Ti)),
@@ -294,19 +291,15 @@ public:
     max_dist(_max_distance),
     max_moves(_max_moves_in_T0)
   {
-    //cout << "building a candidate factory with x = "<<x<<endl;
-    T0->setup_node_infos(false);
+    DEBUG3(cout << "building a candidate factory with x = "<<x<<endl;)
+    T0->setup_node_infos();
     T0->lca_preprocess();
 
-    //cout << "trees"<<endl;
-    //T0->pretty_print();
-    //cout << " ("<<T0->num_stids()<<" stids) & "<<endl;
-    //_Ti.pretty_print();
-    //cout << "("<<_Ti.num_stids()<<" stids)"<<endl;
+    DEBUG5(cout << "trees"<<endl; T0->pretty_print(); cout << " ("<<T0->num_stids()<<" stids) & "<<endl; _Ti.pretty_print(); cout << "("<<_Ti.num_stids()<<" stids)"<<endl;
+      for(unsigned i = 0; i < T0->num_leaves()-1; ++i) cout << "LCA("<<stid(T0->leaf_by_po_num(i))<<"["<<T0->leaf_by_po_num(i)->getId()<<"], "<<stid(T0->leaf_by_po_num(i+1))<<"["<<T0->leaf_by_po_num(i+1)->getId()<<"]) = "<<stid(T0->getLCA(T0->leaf_by_po_num(i), T0->leaf_by_po_num(i+1)))<<"["<<T0->getLCA(T0->leaf_by_po_num(i), T0->leaf_by_po_num(i+1))->getId()<<"]"<<endl);
 
-//    for(unsigned i = 0; i < T0->num_leaves()-1; ++i) cout << "LCA("<<stid(T0->leaf_by_po_num(i))<<"["<<T0->leaf_by_po_num(i)->getId()<<"], "<<stid(T0->leaf_by_po_num(i+1))<<"["<<T0->leaf_by_po_num(i+1)->getId()<<"]) = "<<stid(T0->getLCA(T0->leaf_by_po_num(i), T0->leaf_by_po_num(i+1)))<<"["<<T0->getLCA(T0->leaf_by_po_num(i), T0->leaf_by_po_num(i+1))->getId()<<"]"<<endl;
     init();
-    //cout << "produced candidates: "<<regraft_candidates_T0<<endl;
+    DEBUG3(cout << "produced candidates: "<<regraft_candidates_T0<<endl);
   }
 
   ~CandidateFactory()
@@ -328,25 +321,10 @@ public:
   }
 
   // create a new candidate tree from T0 by grafting x on the uv
-  const MyTree* create_candidate_tree(const TreeEdge& uv)
+  const CandidateTree* create_candidate_tree(const TreeEdge& uv)
   {
-    //cout << "creating candidate tree for TreeEdge above "<<uv<<" in "<<endl;
-    //T0->pretty_print();
-/*
-    MyTree* result = new MyTree(*T0);
-    const StId v_id = uv;
-    MyNode* const new_x = result->graft_leaf_above(v_id);
-    new_x->setName(x_name);
-    result->assign_StId(new_x, x);
-    result->consolidate_StIds();
-    //cout << "new tree:"<<endl;
-    //result->pretty_print(cout, true);
-*/
+    DEBUG3(cout << "creating candidate tree for TreeEdge above "<<uv<<" in "<<endl; T0->pretty_print());
     candidate.regraft_leaf_above(x, uv);
-    candidate.setup_node_infos(false);
-    candidate.setup_triplets();
-    candidate.lca_preprocess();
-
     return &candidate;
   }
 
@@ -357,7 +335,7 @@ public:
 };
 
 
-const MyTree* CandidateIterator::operator->(){ 
+const CandidateTree* CandidateIterator::operator->(){ 
   if(tree == NULL) tree = factory.create_candidate_tree(ParentClass::operator*());
   return tree;
 }

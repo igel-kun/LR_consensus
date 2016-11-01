@@ -6,6 +6,7 @@
 
 #include "hslinkern/hslinkern.hpp"
 #include "MyTree.h" 
+#include "MatrixTriplets.h"
 
 // wrapper for the HittingSet kernel
 set<StId>* kernelize(const Hypergraph& G, const unsigned k)
@@ -27,36 +28,21 @@ set<StId>* kernelize(const Hypergraph& G, const unsigned k)
 
 // the conflict hypergraph is the graph containing all triplets abc of IDs of T1 on which T1 and T2 disagree
 /** NOTE: this assumes that all clades have been set up */
-void construct_conflict_hypergraph(const MyTree& T1, const MyTree& T2, Hypergraph& G)
+void construct_conflict_hypergraph(const MatrixTriplets& conflicts, Hypergraph& G)
 {
-  assert(T1.triplets_set_up());
-  assert(T2.triplets_set_up());
-  const MatrixTriplets& tripletTree1 = T1.get_triplets(); 
-  const MatrixTriplets& tripletTree2 = T2.get_triplets();
-
-  const size_t dim = tripletTree1.size().first;
-  for (unsigned i = 0; i < dim; i++){
-    // translate preorder numbers of T1 into preorder numbers of T2
-    const StId i_id = stid(T1.leaf_by_po_num(i));
-    const unsigned i_in_T2 = T2[i_id]->getInfos().leaf_po_num();
-  	for (unsigned j = i + 1; j < dim; j++){
-      const StId j_id = stid(T1.leaf_by_po_num(j));
-      const unsigned j_in_T2 = T2[j_id]->getInfos().leaf_po_num();
-      // ATTENTION: i and j are leaf-postorder numbers whereas z is an stid
-  		for (const unsigned z: tripletTree1[{i, j}])
-  			if(is_not_triple(tripletTree2, i_in_T2, j_in_T2, z))
-          // for each triple i, j, z in T1 that is NOT a triple in T2 
-  				G.emplace_back(vector<StId>{i_id, j_id, z});
-  	}// for all j
-  }	// for all i
+  const size_t dim = conflicts.size().first;
+  for(StId x = 0; x < dim; ++x)
+    for(StId y = x + 1; y < dim; ++y)
+      for(StId z: conflicts[{x, y}])
+        G.emplace_back(vector<StId>{x, y, z});
 }
 
 // return the vertices of the HittingSet kernel of the conflict hypergraph of triplets in T1 & T2
-set<StId>* disagreement_kernel(const MyTree& T1, const  MyTree& T2, const unsigned k)
+set<StId>* disagreement_kernel(const MatrixTriplets& conflicts, const unsigned k)
 {
   // step 1: build disagreement hypergraph
   Hypergraph G;
-  construct_conflict_hypergraph(T1, T2, G);
+  construct_conflict_hypergraph(conflicts, G);
   //cout << "conflict hypergraph contains "<<G.size()<<" edges" <<endl;
 
   // step 2: run kernelization

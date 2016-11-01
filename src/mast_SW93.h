@@ -41,11 +41,11 @@ unsigned mast(const MyTree& T1,
     //cout << "done computing table, root entry = "<<mast_table.back().first<<", now tracing..."<<endl;
     mast_table.trace(*mast_leaves);
     //cout << "traced "<<mast_leaves->size()<<" leaves."<<endl;
-    return mast_table.back().first;
+    return mast_table.get_root_score();
   } else {
     DPTable mast_table(T1, T2);
     mast_table.fill();
-    return mast_table.back();
+    return mast_table.get_root_score();
   }
 }
 
