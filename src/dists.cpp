@@ -54,7 +54,7 @@ int main(int argc, char** argv){
     return 1;
   }
 	trees = readTrees(argv[1]);
-  if(argc > 1) tmp = readTrees(argv[2]);
+  if(argc > 2) tmp = readTrees(argv[2]);
   trees.insert(trees.end(), tmp.begin(), tmp.end());
   // NOTE: to call mastRL, we need the following preprocessing steps:
   // Step 1: seperate a candidate t from the trees
@@ -68,7 +68,9 @@ int main(int argc, char** argv){
   cout << "RF\tTrip\tRL\tnrmRF\tnrmTp\tnrmRL" << endl;
   for(MyTree* other: trees){
     other->setup_node_infos();
+    other->sync_leaf_stids(*t);
     other->setup_triplets();
+    //other->pretty_print();
 
     const unsigned d_rf = RF_distance(*t, *other);
     const unsigned d_trip = Trip_distance(*t, *other);

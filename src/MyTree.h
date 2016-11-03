@@ -62,52 +62,6 @@ struct DepthCompare{
 
 
 
-// a centroid path class, represented by its topmost (first) and botommost vertex (second)
-struct CentroidPath: public pair<MyNode*, MyNode*>
-{
-  MyNode* get_root() const { return first; }
-  MyNode* get_leaf() const { return second; }
-  void set_root(MyNode* node) { first = node; }
-  void set_leaf(MyNode* node) { second = node; }
-
-  //! return whether a node is in this centroid path
-  bool contains(const MyNode* node) const
-  {
-    return node->getInfos().cp_num == first->getInfos().cp_num;
-  }
-
-  list<const MyNode*> get_nodes_top_down() const
-  {
-    const MyNode* node = second;
-    list<const MyNode*> result(1, node);
-    while(node != first){
-      node = node->getFather();
-      result.push_front(node);
-    }
-    return result;
-  }
-};
-
-
-// get the child of v that is not in the same centroid path as v
-const MyNode* get_non_cp_child(const MyNode* const v)
-{
-  assert(!v->isLeaf());
-  if(v->getInfos().cp_num != v->getSon(0)->getInfos().cp_num)
-    return v->getSon(0);
-  else
-    return v->getSon(1);
-}
-
-// compute the size of the subtree rooted at the child of v that is not in the same centroid path as v
-unsigned compute_nj(const MyNode* v)
-{
-  return v->isLeaf() ? 1 : get_non_cp_child(v)->getInfos().subtree_size;
-}
-
-
-
-
 class MyTree: public TreeTemplate<MyNode> 
 {
 protected:
@@ -673,14 +627,13 @@ public:
 		
 		const Clade& cladeCN = current_node.getInfos().clade;
     const ConstChildren childs = get_children(current_node);
-
+    
 		for(auto childitA = childs.begin(); childitA != childs.end(); ++childitA){
 			const Clade& cladeA = childitA->getInfos().clade;
 			for(auto childitB = childitA + 1; childitB != childs.end(); ++childitB){
 				const Clade& cladeB = childitB->getInfos().clade;
-				
 				for(unsigned i = cladeA.first;i <= cladeA.second; i++){
-					for(unsigned j = cladeB.first;j < cladeB.second; j++){
+					for(unsigned j = cladeB.first;j <= cladeB.second; j++){
 						for(unsigned z = 0; z < cladeCN.first; ++z)
 								add_triple(triplets, i, j, stid(leaves_po[z]));
 						for(unsigned z = cladeCN.second + 1; z < num_leaves(); ++z)
@@ -782,11 +735,11 @@ vector < MyTree *>  readTrees(const string & path) throw (Exception) {
     
     ifstream file(path.c_str(), ios::in);
     //if (! file) { throw IOException ("\nError reading file.\nInvalid options!\nUsage:\n ./physic -s sourceTreeFile -t threshold.\nwhere:\n - sourceTreeFile contains a set of rooted trees in newick format with bootstrap values and possibly edge lengths.\n - threshold indicates bootstrap values under which clades are not considered for building the supertree\n(typically a threshold of 70 can be used when source trees where obtained from 100 bootstrap replicates).\n"); }
-    if (! file) { throw IOException ("\nError reading file.\n"); }
+    if (! file.good()) { throw IOException ("\nError reading file.\n"); }
     
     vector<MyTree*> trees;
     string temp, description;
-    while (! file.eof()) {
+    while (file.good()) {
         temp = FileTools::getNextLine(file);
         if(temp.size() != 0){
             string::size_type index = temp.find(";");
@@ -796,7 +749,7 @@ vector < MyTree *>  readTrees(const string & path) throw (Exception) {
                 TreeTemplate<Node> * tree = TreeTemplateTools::parenthesisToTree(description,true);
                 trees.push_back(new MyTree((MyNode*)(tree->getRootNode())));
                 delete tree;
-                description = temp.substr(index);   
+                description = temp.substr(index + 1);   
             } else description += temp;
         }
     }

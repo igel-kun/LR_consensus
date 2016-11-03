@@ -13,6 +13,9 @@
 #include <list>
 #include <set>
 #include <queue>
+#include <unordered_set>
+
+using namespace std;
 
 using namespace std;
 
@@ -52,6 +55,15 @@ std::ostream& operator<<(std::ostream& os, const std::list<E>& e)
 //output freakin sets
 template<class E>
 std::ostream& operator<<(std::ostream& os, const std::set<E>& e)
+{
+  os << "(";
+  for(const auto& item: e) os << item << " ";
+  return os << ")";
+}
+
+//output freakin unordered sets
+template<class E>
+std::ostream& operator<<(std::ostream& os, const std::unordered_set<E>& e)
 {
   os << "(";
   for(const auto& item: e) os << item << " ";

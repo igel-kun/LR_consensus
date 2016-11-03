@@ -59,7 +59,9 @@ Clade get_spanning_clade(const Clade& c1, const Clade& c2)
   return Clade(std::min(c1.first, c2.first), std::max(c1.second, c2.second));
 }
 
-struct NodeInfos  {
+
+struct NodeInfos
+{
   StId stId;
   unsigned cp_num;        // the centroid path number
   unsigned depth; 
@@ -75,6 +77,24 @@ struct NodeInfos  {
   }
 
 };
+
+
+// get the child of v that is not in the same centroid path as v
+const MyNode* get_non_cp_child(const MyNode* const v)
+{
+  assert(!v->isLeaf());
+  if(v->getInfos().cp_num != v->getSon(0)->getInfos().cp_num)
+    return v->getSon(0);
+  else
+    return v->getSon(1);
+}
+
+// compute the size of the subtree rooted at the child of v that is not in the same centroid path as v
+unsigned compute_nj(const MyNode* v)
+{
+  return v->isLeaf() ? 1 : get_non_cp_child(v)->getInfos().subtree_size;
+}
+
 
 #endif /*NODEINFOS_H_*/
 
